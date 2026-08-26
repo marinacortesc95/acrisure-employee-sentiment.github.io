@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Sentiment &amp; Experience Analytics</title>
+<style>
+:root{
+  --navy:#011043; --deep-navy:#13263F; --ink:#0B0C0C; --cloud:#D9DEE1;
+  --sky:#B7D7EE; --bright:#408DF1; --sage:#C6D3AD; --white:#FFFFFF; --link:#36749D;
+  --zebra:#F4F6F8; --muted:#5B6670;
+  /* sentiment + state tones: brand-harmonized, muted (never used as the only signal) */
+  --pos:#5E8C6A; --neg:#A6474B; --mix:#408DF1; --neu:#9AA6AE;
+  --emerging:#011043; --alert:#A6474B;
+  --font-head:"Cambria", Georgia, "Times New Roman", serif;
+  --font-body:"Century Gothic","Questrial","Futura",Avenir,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--white);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--font-head);color:var(--navy);font-weight:700;line-height:1.15;margin:0}
+h1{font-size:2rem}
+h2{font-size:1.45rem}
+h3{font-size:1.1rem}
+h4{font-size:.95rem}
+p{margin:0 0 10px}
+a{color:var(--link)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;background:var(--zebra);padding:1px 5px;border-radius:3px}
+
+/* ---------- header / nav ---------- */
+.app-header{border-bottom:1px solid var(--cloud);background:var(--white);position:sticky;top:0;z-index:40}
+.header-inner{max-width:1400px;margin:0 auto;padding:20px 48px 0;display:flex;flex-direction:column;gap:18px}
+.brand-row{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:20px}
+.brand img{height:26px;width:auto;display:block}
+.brand .divider{width:1px;height:34px;background:var(--cloud)}
+.brand .titles h1{font-size:1.35rem}
+.brand .titles .sub{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.session-flag{font-size:.75rem;color:var(--muted);text-align:right;max-width:320px}
+.tabs{display:flex;gap:4px}
+.tab{appearance:none;background:none;border:none;border-bottom:3px solid transparent;font-family:var(--font-body);font-size:.9rem;color:var(--muted);padding:10px 18px 12px;cursor:pointer;letter-spacing:.02em}
+.tab:hover{color:var(--navy)}
+.tab[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--navy);font-weight:700}
+.tab .step{font-family:var(--font-head);margin-right:8px;color:var(--bright)}
+.tab:focus-visible{outline:2px solid var(--bright);outline-offset:2px}
+
+/* ---------- layout ---------- */
+main{max-width:1400px;margin:0 auto;padding:36px 48px 96px}
+.page[hidden]{display:none}
+.page-intro{max-width:840px;margin-bottom:28px}
+.page-intro h2{margin-bottom:8px}
+.page-intro p{color:var(--muted);font-size:.92rem}
+.panel{background:var(--white);border:1px solid var(--cloud);border-radius:8px;margin-bottom:24px}
+.panel-head{padding:20px 24px;border-bottom:1px solid var(--cloud);display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.panel-head .hint{font-size:.8rem;color:var(--muted)}
+.panel-body{padding:24px}
+.panel-body.tight{padding:16px 24px 24px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.spacer{flex:1}
+.stack{display:flex;flex-direction:column;gap:18px}
+hr.rule{border:none;border-top:1px solid var(--cloud);margin:24px 0}
+
+/* ---------- forms ---------- */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label,.lbl{font-size:.74rem;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);font-weight:700}
+.field .help{font-size:.76rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
+input[type=text],input[type=date],input[type=search],select,textarea{
+  font-family:var(--font-body);font-size:.9rem;color:var(--ink);background:var(--white);
+  border:1px solid var(--cloud);border-radius:5px;padding:9px 11px;width:100%}
+textarea{resize:vertical;line-height:1.55}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--bright);outline-offset:0;border-color:var(--bright)}
+.btn{font-family:var(--font-body);font-size:.85rem;border-radius:5px;padding:10px 18px;cursor:pointer;border:1px solid var(--navy);background:var(--navy);color:var(--white);letter-spacing:.02em}
+.btn:hover{background:var(--deep-navy);border-color:var(--deep-navy)}
+.btn.quiet{background:var(--white);color:var(--navy)}
+.btn.quiet:hover{background:var(--zebra)}
+.btn.accent{background:var(--bright);border-color:var(--bright);color:var(--white)}
+.btn.accent:hover{filter:brightness(.93)}
+.btn.small{padding:6px 12px;font-size:.78rem}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid var(--bright);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--cloud);border-radius:5px;overflow:hidden}
+.seg button{appearance:none;border:none;background:var(--white);font-family:var(--font-body);font-size:.82rem;padding:9px 16px;cursor:pointer;color:var(--muted);border-right:1px solid var(--cloud)}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--white);font-weight:700}
+.checkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px 18px}
+.checkgrid label{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;cursor:pointer}
+.checkgrid input{margin-top:3px;accent-color:var(--navy)}
+.theme-group{margin-bottom:16px}
+.theme-group .lbl{display:block;margin-bottom:8px}
+
+/* ---------- notes / callouts ---------- */
+.note{background:var(--zebra);border:1px solid var(--cloud);border-radius:6px;padding:14px 16px;font-size:.84rem;color:var(--ink)}
+.note.sky{background:var(--sky);border-color:#9CC4E0}
+.note strong{color:var(--navy)}
+.note ol,.note ul{margin:8px 0 0;padding-left:20px}
+.note li{margin-bottom:4px}
+.empty{border:1px dashed var(--cloud);border-radius:6px;padding:38px 24px;text-align:center;color:var(--muted);font-size:.9rem}
+.err{color:var(--alert);font-size:.82rem}
+.ok{color:var(--pos);font-size:.82rem}
+.msg{font-size:.83rem;min-height:18px}
+
+/* ---------- badges ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:11px;border:1px solid;white-space:nowrap}
+.badge .g{font-family:var(--font-head);font-size:.8rem;line-height:1}
+.b-pos{color:#3F6249;border-color:var(--pos);background:#EEF3EF}
+.b-neg{color:#8A3A3E;border-color:var(--neg);background:#F7EEEE}
+.b-mix{color:#1B5FB5;border-color:var(--mix);background:#EAF2FD}
+.b-neu{color:#4E5A63;border-color:var(--neu);background:#F2F4F5}
+.b-emerging{color:var(--navy);border-color:var(--navy);background:var(--sky)}
+.b-alert{color:#8A3A3E;border-color:var(--alert);background:#F7EEEE}
+.b-flat{color:var(--muted);border-color:var(--cloud);background:var(--white)}
+.b-nav{color:var(--white);border-color:var(--navy);background:var(--navy)}
+.tag{display:inline-block;font-size:.73rem;border:1px solid var(--cloud);border-radius:4px;padding:1px 6px;margin:1px 3px 1px 0;color:var(--muted);background:var(--white)}
+.tag.pos{border-color:var(--pos);color:#3F6249}
+.tag.neg{border-color:var(--neg);color:#8A3A3E}
+.tag.emg{border-color:var(--navy);color:var(--navy);background:var(--sky)}
+
+/* ---------- tables ---------- */
+.table-wrap{overflow:auto;border:1px solid var(--cloud);border-radius:6px;max-height:560px}
+table{border-collapse:collapse;width:100%;font-size:.83rem}
+thead th{background:var(--navy);color:var(--white);font-family:var(--font-body);font-weight:700;text-align:left;padding:10px 12px;position:sticky;top:0;z-index:2;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--cloud);vertical-align:top}
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr.dup{box-shadow:inset 3px 0 0 var(--alert)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.wrap{min-width:220px;white-space:normal}
+td.nowrap{white-space:nowrap}
+.t-title{font-weight:700;color:var(--navy)}
+.t-sub{color:var(--muted);font-size:.94em}
+caption{caption-side:top;text-align:left;font-size:.8rem;color:var(--muted);padding-bottom:8px}
+
+/* ---------- KPI ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.kpi-card{background:var(--white);border:1px solid var(--cloud);border-radius:8px;padding:18px 20px}
+.kpi-card .label{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);font-weight:700}
+.kpi-card .value{font-family:var(--font-head);font-size:2rem;color:var(--navy);margin-top:6px;line-height:1.05}
+.kpi-card .value.sm{font-size:1.15rem;line-height:1.25}
+.kpi-card .sub{font-size:.76rem;color:var(--muted);margin-top:5px}
+.kpi-card.accent .value{color:var(--bright)}
+
+/* ---------- charts ---------- */
+.chart-card{border:1px solid var(--cloud);border-radius:8px;padding:20px 22px}
+.chart-card h4{margin-bottom:2px}
+.chart-card .cap{font-size:.76rem;color:var(--muted);margin-bottom:14px}
+.chart-card svg{width:100%;height:auto;display:block;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:.76rem;color:var(--ink)}
+.legend span.k{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+.chart-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:.78rem}
+.axis text{font-family:var(--font-body);font-size:10.5px;fill:var(--muted)}
+.bar-label{font-family:var(--font-body);font-size:11px;fill:var(--ink);font-variant-numeric:tabular-nums}
+.cat-label{font-family:var(--font-body);font-size:11.5px;fill:var(--ink)}
+.grid-line{stroke:var(--cloud);stroke-width:1}
+.donut-center{font-family:var(--font-head);fill:var(--navy)}
+
+/* ---------- files / filters ---------- */
+.drop{border:2px dashed var(--cloud);border-radius:8px;padding:30px 24px;text-align:center;transition:border-color .12s,background .12s}
+.drop.hot{border-color:var(--bright);background:#F3F8FE}
+.drop .big{font-family:var(--font-head);color:var(--navy);font-size:1.05rem;margin-bottom:6px}
+.drop .small{font-size:.8rem;color:var(--muted)}
+.file-row{display:flex;align-items:center;gap:14px;padding:11px 14px;border:1px solid var(--cloud);border-radius:6px;margin-bottom:8px;font-size:.83rem;flex-wrap:wrap}
+.file-row .fname{font-weight:700;color:var(--navy);flex:1;min-width:180px;word-break:break-all}
+.file-row .meta{color:var(--muted)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.active-filters{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.78rem;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--zebra);border:1px solid var(--cloud);border-radius:13px;padding:3px 6px 3px 11px;font-size:.76rem;color:var(--ink)}
+.chip button{appearance:none;border:none;background:var(--cloud);color:var(--navy);border-radius:50%;width:16px;height:16px;line-height:1;cursor:pointer;font-size:.72rem}
+
+/* ---------- insights ---------- */
+.insight-block{border:1px solid var(--cloud);border-radius:8px;padding:18px 20px;margin-bottom:14px}
+.insight-block h4{margin-bottom:10px}
+.insight-block ul{margin:0;padding-left:0;list-style:none}
+.insight-block li{padding:7px 0;border-bottom:1px solid var(--cloud);font-size:.87rem;display:flex;gap:10px;align-items:flex-start}
+.insight-block li:last-child{border-bottom:none}
+.insight-block li .badge{flex:0 0 auto;margin-top:1px}
+.evidence-key{display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-bottom:18px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+@media (max-width:1080px){
+  .header-inner,main{padding-left:24px;padding-right:24px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand-row">
+      <div class="brand">
+        <img src="data:image/png;base64,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" alt="Acrisure">
+        <div class="divider" aria-hidden="true"></div>
+        <div class="titles">
+          <h1>Employee Sentiment &amp; Experience Analytics</h1>
+          <div class="sub">Glassdoor &amp; Indeed review intelligence</div>
+        </div>
+      </div>
+      <div class="session-flag">Data lives in this browser tab only. Nothing is stored or sent anywhere — export from Classify, upload into Dashboard.</div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Workflow pages">
+      <button class="tab" id="tab-p1" role="tab" aria-selected="true" aria-controls="page1"><span class="step">1</span>Review &amp; Classification</button>
+      <button class="tab" id="tab-p2" role="tab" aria-selected="false" aria-controls="page2"><span class="step">2</span>Dashboard &amp; Trends</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ================= PAGE 1 ================= -->
+<section class="page" id="page1" role="tabpanel" aria-labelledby="tab-p1">
+
+  <div class="page-intro">
+    <h2>Review &amp; Classification</h2>
+    <p>Enter or import Glassdoor and Indeed reviews, classify them against the standing theme framework, check for duplicates, then export the processed dataset. The export file is the only thing that carries data to the dashboard.</p>
+  </div>
+
+  <!-- INTAKE -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3>1. Add reviews</h3>
+      <span class="hint">Every review added here is classified against the framework straight away.</span>
+    </div>
+    <div class="panel-body">
+      <div class="note sky">
+        <strong>Classification runs on add, and it is rule-based — not a language model.</strong> Each review is matched against the cue phrases behind every theme in the framework; sentiment comes from those cues and the themes assigned; pros and cons are taken from the reviewer's own wording. It does not read context or catch sarcasm, so each result arrives as a <strong>suggestion</strong> with its confidence, and stays that way until you confirm it in the working set.
+      </div>
+      <div class="seg" role="group" aria-label="Intake mode" id="intakeSeg" style="margin-top:18px">
+        <button data-mode="single" aria-pressed="true">One review</button>
+        <button data-mode="bulk" aria-pressed="false">Paste several</button>
+      </div>
+
+      <div id="intakeSingle" style="margin-top:20px">
+        <div class="row">
+          <div class="field" style="width:190px">
+            <label for="rvSource">Review source</label>
+            <select id="rvSource"><option>Glassdoor</option><option>Indeed</option></select>
+          </div>
+          <div class="field" style="width:190px">
+            <label for="rvDate">Review date</label>
+            <input type="date" id="rvDate">
+          </div>
+          <div class="field" style="flex:1;min-width:260px">
+            <label for="rvTitle">Review title</label>
+            <input type="text" id="rvTitle" placeholder="As written by the reviewer">
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field" style="width:210px">
+            <label for="rvEmployment">Employment status</label>
+            <select id="rvEmployment"><option value="">— not stated —</option><option>Current Employee</option><option>Past Employee</option></select>
+          </div>
+          <div class="field" style="flex:1;min-width:200px">
+            <label for="rvJobTitle">Job title</label>
+            <input type="text" id="rvJobTitle" placeholder="As the reviewer gave it">
+          </div>
+          <div class="field" style="flex:1;min-width:200px">
+            <label for="rvLocation">Location</label>
+            <input type="text" id="rvLocation" placeholder="City, state or office">
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label for="rvText">Review text</label>
+          <textarea id="rvText" rows="5" placeholder="Paste the full review, pros and cons included."></textarea>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn" id="btnAddSingle">Add review</button>
+          <span class="msg" id="msgSingle"></span>
+        </div>
+      </div>
+
+      <div id="intakeBulk" hidden style="margin-top:20px">
+        <div class="note">
+          <strong>Paste format —</strong> one review per block, blocks separated by a blank line. Field order is fixed:
+          <br><code>Source | YYYY-MM-DD | Title | Review text</code>
+          <br>Use <code>N/A</code> for anything the source didn't give you. Text containing <code>|</code> should be entered one review at a time instead.
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label for="bulkBox">Reviews</label>
+          <textarea id="bulkBox" rows="9" placeholder="Glassdoor | 2026-05-14 | Good people, hard year | The team is excellent but the reorgs never stop...
+
+Indeed | 2026-06-02 | N/A | Workload has doubled since the last round of cuts."></textarea>
+        </div>
+        <div class="lbl" style="margin-top:18px">Applies to every review in this paste <span class="help" style="text-transform:none;letter-spacing:0;font-weight:400">Leave blank where the batch is mixed, then correct individual records with Edit</span></div>
+        <div class="row" style="margin-top:8px">
+          <div class="field" style="width:210px">
+            <label for="bulkEmployment">Employment status</label>
+            <select id="bulkEmployment"><option value="">— not stated —</option><option>Current Employee</option><option>Past Employee</option></select>
+          </div>
+          <div class="field" style="flex:1;min-width:180px"><label for="bulkJobTitle">Job title</label><input type="text" id="bulkJobTitle"></div>
+          <div class="field" style="flex:1;min-width:180px"><label for="bulkLocation">Location</label><input type="text" id="bulkLocation"></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnAddBulk">Add reviews</button>
+          <span class="msg" id="msgBulk"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKING SET -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3>2. Working set</h3>
+      <span class="hint" id="wsHint">Confirm each suggestion, or edit it first. Nothing is shared with the dashboard until exported.</span>
+    </div>
+    <div class="panel-body tight">
+      <div class="row" style="margin:8px 0 16px">
+        <div class="kpi-grid" style="flex:1;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))" id="p1Kpis"></div>
+      </div>
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn quiet small" id="btnRunDupes">Re-run duplicate check</button>
+        <button class="btn quiet small" id="btnClearWs">Clear working set</button>
+        <div class="spacer"></div>
+        <span class="msg" id="msgWs"></span>
+      </div>
+      <div id="wsTableHost"></div>
+    </div>
+  </div>
+
+  <!-- CLASSIFY EDITOR -->
+  <div class="panel" id="editorPanel" hidden>
+    <div class="panel-head">
+      <h3>Classify review <span id="edId" style="font-family:var(--font-body);font-size:.85rem;color:var(--muted)"></span></h3>
+      <button class="btn quiet small" id="btnCloseEditor">Close</button>
+    </div>
+    <div class="panel-body">
+      <div class="note" id="edSourceText" style="margin-bottom:16px"></div>
+      <div id="edEvidence" style="margin-bottom:20px"></div>
+      <div class="row">
+        <div class="field" style="width:200px">
+          <label for="edSentiment">Sentiment <span class="help">Overall tone, not single lines</span></label>
+          <select id="edSentiment"><option value="">— select —</option><option>Positive</option><option>Negative</option><option>Mixed</option><option>Neutral</option></select>
+        </div>
+        <div class="field" style="flex:1;min-width:260px">
+          <label for="edPrimary">Primary theme <span class="help">Exactly one</span></label>
+          <select id="edPrimary"></select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div class="field" style="width:210px">
+          <label for="edEmployment">Employment status</label>
+          <select id="edEmployment"><option value="">— not stated —</option><option>Current Employee</option><option>Past Employee</option></select>
+        </div>
+        <div class="field" style="flex:1;min-width:180px"><label for="edJobTitle">Job title</label><input type="text" id="edJobTitle"></div>
+        <div class="field" style="flex:1;min-width:180px"><label for="edLocation">Location</label><input type="text" id="edLocation"></div>
+      </div>
+      <hr class="rule">
+      <div class="lbl" style="margin-bottom:12px">Secondary themes <span class="help" style="text-transform:none;letter-spacing:0;font-weight:400">Only where the topic is meaningfully discussed. Suggested themes for the chosen primary are marked. Pick <strong>Other</strong> to name a theme the lists don't cover.</span></div>
+      <div id="edSecondary"></div>
+      <hr class="rule">
+      <div class="field"><label for="edSummary">Review summary <span class="help">Objective, no speculation</span></label><textarea id="edSummary" rows="2"></textarea></div>
+      <div class="field" style="margin-top:16px"><label for="edNotes">Analyst notes <span class="help">Only when useful</span></label><textarea id="edNotes" rows="2"></textarea></div>
+      <div class="row" style="margin-top:18px">
+        <button class="btn" id="btnSaveClassify">Save &amp; confirm</button>
+        <button class="btn quiet" id="btnCloseEditor2">Cancel</button>
+        <span class="msg" id="msgEd"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3>3. Export processed dataset</h3>
+      <span class="hint">Fixed 12-column schema — the contract with the dashboard page.</span>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:.85rem;color:var(--muted)">Columns export in this order and are never renamed: Review Source, Review Date, Review Title, Sentiment, Primary Theme, Secondary Themes, Pros Summary, Cons Summary, Key Topics, Review Summary, Analyst Notes, Duplicate Flag, then the appended reviewer-context columns Location, Employment Status, Job Title. The first twelve keep their original order and meaning, so exports made before those columns existed still upload to the dashboard. Empty values export as <code>N/A</code>. Give each export a date so historical files stay distinguishable when you upload several at once.</p>
+      <div class="row" style="margin-top:6px">
+        <div class="field" style="width:240px"><label for="expLabel">File label <span class="help">Optional, e.g. Q2-2026</span></label><input type="text" id="expLabel" placeholder="period or batch"></div>
+        <button class="btn" id="btnExport">Download CSV</button>
+        <button class="btn quiet" id="btnCopyCsv">Copy CSV</button>
+        <span class="msg" id="msgExport"></span>
+      </div>
+      <textarea id="csvBox" rows="6" hidden style="margin-top:14px" readonly></textarea>
+    </div>
+  </div>
+</section>
+<!-- ================= PAGE 2 ================= -->
+<section class="page" id="page2" role="tabpanel" aria-labelledby="tab-p2" hidden>
+
+  <div class="page-intro">
+    <h2>Dashboard &amp; Trends</h2>
+    <p>Upload one or more processed exports — including files from earlier reporting periods — to build the working dataset. Every metric, chart and insight below is calculated from those files and the filters you set. Nothing here is entered by hand.</p>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="panel">
+    <div class="panel-head">
+      <h3>Upload processed exports</h3>
+      <span class="hint">CSV only, headers must match the export schema exactly.</span>
+    </div>
+    <div class="panel-body">
+      <div class="drop" id="drop">
+        <div class="big">Drop CSV exports here</div>
+        <div class="small">or <label for="fileInput" style="color:var(--link);text-decoration:underline;cursor:pointer">choose files</label> — several at once is fine</div>
+        <input type="file" id="fileInput" accept=".csv,text/csv" multiple class="sr-only">
+      </div>
+      <div class="note" style="margin-top:16px">
+        <strong>Uploads add to the dataset, they don't replace it.</strong> Upload an April 2025 export and a June 2026 export and the trend sections read across both. Duplicate detection runs across the combined dataset, so a review appearing in two files is flagged rather than dropped. This dataset lives in memory for this tab only — reloading the artifact clears it and you re-upload.
+      </div>
+      <div id="uploadMsg" class="msg" style="margin-top:12px"></div>
+      <div style="margin-top:18px">
+        <div class="row" style="margin-bottom:10px">
+          <div class="lbl">Loaded files</div>
+          <div class="spacer"></div>
+          <button class="btn quiet small" id="btnClearAll">Clear all</button>
+        </div>
+        <div id="fileList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dashArea">
+    <!-- FILTERS -->
+    <div class="panel">
+      <div class="panel-head"><h3>Filters &amp; search</h3><span class="hint" id="filterCount"></span></div>
+      <div class="panel-body">
+        <div class="filters">
+          <div class="field"><label for="fSource">Source</label><select id="fSource"><option value="">All sources</option><option>Glassdoor</option><option>Indeed</option></select></div>
+          <div class="field"><label for="fSentiment">Sentiment</label><select id="fSentiment"><option value="">All sentiment</option><option>Positive</option><option>Negative</option><option>Mixed</option><option>Neutral</option></select></div>
+          <div class="field"><label for="fPrimary">Primary theme</label><select id="fPrimary"></select></div>
+          <div class="field"><label for="fSecondary">Secondary theme</label><select id="fSecondary"></select></div>
+          <div class="field"><label for="fEmployment">Employment status</label><select id="fEmployment"></select></div>
+          <div class="field"><label for="fDup">Duplicate status</label><select id="fDup"><option value="">All records</option><option value="dup">Potential duplicates only</option><option value="uniq">Exclude potential duplicates</option></select></div>
+          <div class="field"><label for="fFile">Source file</label><select id="fFile"></select></div>
+          <div class="field"><label for="fFrom">Date from</label><input type="date" id="fFrom"></div>
+          <div class="field"><label for="fTo">Date to</label><input type="date" id="fTo"></div>
+          <div class="field"><label for="fSearch">Search</label><input type="search" id="fSearch" placeholder="title, summaries, topics, notes"></div>
+        </div>
+        <div class="active-filters" id="activeFilters"></div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="panel">
+      <div class="panel-head"><h3>Dashboard</h3><span class="hint">Combined uploaded dataset, after filters</span></div>
+      <div class="panel-body"><div class="kpi-grid" id="kpiGrid"></div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="panel">
+      <div class="panel-head"><h3>Distributions</h3><span class="hint">Values are labelled as well as coloured</span></div>
+      <div class="panel-body">
+        <div class="grid-2">
+          <div class="chart-card"><h4>Sentiment distribution</h4><div class="cap" id="capSent"></div><div id="chSent"></div></div>
+          <div class="chart-card"><h4>Review volume over time</h4><div class="cap" id="capVol"></div><div id="chVol"></div></div>
+        </div>
+        <div class="grid-2" style="margin-top:24px">
+          <div class="chart-card"><h4>Primary theme frequency</h4><div class="cap">Share of filtered reviews. One primary theme per review.</div><div id="chPrim"></div></div>
+          <div class="chart-card"><h4>Secondary theme frequency</h4><div class="cap">A review can carry several secondary themes, so shares sum above 100%.</div><div id="chSec"></div></div>
+        </div>
+        <div class="grid-2" style="margin-top:24px">
+          <div class="chart-card"><h4>Sentiment by primary theme</h4><div class="cap">Theme and sentiment are classified independently — a theme is not inherently positive or negative.</div><div id="chSentPrim"></div></div>
+          <div class="chart-card"><h4>Sentiment by secondary theme</h4><div class="cap">Top 12 secondary themes by volume.</div><div id="chSentSec"></div></div>
+        </div>
+        <div class="chart-card" style="margin-top:24px">
+          <h4>Theme trends over time</h4>
+          <div class="cap">Reviews per period carrying each selected secondary theme. Periods with no reviews are omitted.</div>
+          <div class="chart-tools" id="trendPicker"></div>
+          <div id="chTrend"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TREND ANALYSIS -->
+    <div class="panel">
+      <div class="panel-head"><h3>Trend analysis</h3><span class="hint" id="trendScope"></span></div>
+      <div class="panel-body">
+        <div class="stack">
+          <div><h4 style="margin-bottom:10px">Sentiment</h4><div id="tblSentiment"></div></div>
+          <div><h4 style="margin-bottom:10px">Primary themes</h4><div id="tblPrimary"></div></div>
+          <div><h4 style="margin-bottom:10px">Secondary themes</h4><div id="tblSecondary"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCE COMPARISON -->
+    <div class="panel">
+      <div class="panel-head"><h3>Source comparison</h3><span class="hint">Are Indeed and Glassdoor telling the same story?</span></div>
+      <div class="panel-body">
+        <div id="srcKpis" class="kpi-grid" style="margin-bottom:22px"></div>
+        <div class="grid-2">
+          <div><h4 style="margin-bottom:10px">Primary theme distribution by source</h4><div id="tblSrcPrimary"></div></div>
+          <div><h4 style="margin-bottom:10px">Secondary theme distribution by source</h4><div id="tblSrcSecondary"></div></div>
+        </div>
+        <div style="margin-top:22px"><h4 style="margin-bottom:10px">Shared and source-specific themes</h4><div id="srcOverlap"></div></div>
+      </div>
+    </div>
+
+    <!-- RECURRING THEMES -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Recurring themes</h3>
+        <div class="seg" role="group" aria-label="Recurring theme view" id="recurSeg">
+          <button data-view="pos" aria-pressed="true">Positive</button>
+          <button data-view="neg" aria-pressed="false">Negative</button>
+          <button data-view="emg" aria-pressed="false">Emerging</button>
+        </div>
+      </div>
+      <div class="panel-body"><div id="recurHost"></div></div>
+    </div>
+
+    <!-- EXECUTIVE INSIGHTS -->
+    <div class="panel">
+      <div class="panel-head"><h3>Executive insights</h3><span class="hint">Generated from the filtered dataset only</span></div>
+      <div class="panel-body">
+        <div class="evidence-key">
+          <span class="k"><span class="badge b-nav"><span class="g">▪</span>Data</span> measured in the dataset</span>
+          <span class="k"><span class="badge b-mix"><span class="g">▪</span>Interpretation</span> reading of the measurement</span>
+          <span class="k"><span class="badge b-flat"><span class="g">▪</span>Recommendation</span> action the evidence supports</span>
+        </div>
+        <div id="insightHost"></div>
+      </div>
+    </div>
+
+    <!-- RECORDS -->
+    <div class="panel">
+      <div class="panel-head"><h3>Records</h3><span class="hint" id="recordCount"></span></div>
+      <div class="panel-body tight"><div id="recTableHost" style="margin-top:14px"></div></div>
+    </div>
+  </div>
+
+  <div id="dashEmpty">
+    <div class="empty" style="padding:64px 24px">
+      <div style="font-family:var(--font-head);color:var(--navy);font-size:1.15rem;margin-bottom:8px">Upload a processed dataset export to view the dashboard.</div>
+      <div>Exports come from the Review &amp; Classification page. Upload several periods together to see what changed.</div>
+    </div>
+  </div>
+</section>
+</main>
+<script>
+"use strict";
+/* =========================================================
+   TAXONOMY — the standing framework. Do not rename members.
+   ========================================================= */
+const PRIMARY_THEMES = ["Compensation & Benefits","Leadership & Management","Career Growth","Work-Life Balance","Company Culture","Team & Coworkers","Recognition & Appreciation","Process & Operations","Job Security & Stability","Customer/Business Strategy","Work Environment","Other"];
+
+const POS_SECONDARY = ["Good People / Culture","Growth / Opportunity","Good Pay","PTO / Benefits","Work-Life Balance (Positive)","Good Leadership / Cares","Good Career Experience"];
+
+const NEG_SECONDARY = ["Workload","Culture — Negative","Communication","Upper Management","Organizational / Structural Changes","Pay — Negative","Layoffs / AI","Bonuses / Merit Raises","Training","Outsourcing Roles","Not Valuing Employees","RTO (Return to Office)","Lack of Development Opportunities","Micromanagement","Lack of Processes / Policies","Unclear Roles"];
+
+const TRACKING_THEMES = ["IPO","\"Too Corporate\"","Parking Lot / Walk to Office","Fast-Paced / Interesting Work","Office / Location","Support","Tech","Learning","Organized","Hiring Process","Community Impact"];
+
+const ALL_SECONDARY = POS_SECONDARY.concat(NEG_SECONDARY);
+
+const MAPPING = {
+  "Compensation & Benefits":["Good Pay","Pay — Negative","PTO / Benefits","Bonuses / Merit Raises"],
+  "Leadership & Management":["Upper Management","Communication","Not Valuing Employees","Good Leadership / Cares","Micromanagement"],
+  "Career Growth":["Growth / Opportunity","Training","Lack of Development Opportunities","Good Career Experience"],
+  "Work-Life Balance":["Workload","Work-Life Balance (Positive)","RTO (Return to Office)"],
+  "Company Culture":["Good People / Culture","Culture — Negative","Not Valuing Employees"],
+  "Team & Coworkers":["Good People / Culture","Communication"],
+  "Recognition & Appreciation":["Not Valuing Employees","Bonuses / Merit Raises"],
+  "Process & Operations":["Communication","Organizational / Structural Changes","Training","Lack of Processes / Policies","Unclear Roles"],
+  "Job Security & Stability":["Layoffs / AI","Outsourcing Roles","Organizational / Structural Changes"],
+  "Customer/Business Strategy":["Organizational / Structural Changes","Outsourcing Roles","Layoffs / AI"],
+  "Work Environment":["Good People / Culture","Culture — Negative","Workload","RTO (Return to Office)"],
+  "Other":[]
+};
+
+/* First-seen baseline from the 2025–2026 Indeed & Glassdoor decks (reference context only —
+   never used to override what the uploaded data actually shows). */
+const HISTORICAL = {
+  "Good People / Culture":{i:"All periods",g:"All periods",first:"April 2025"},
+  "Growth / Opportunity":{i:"All periods",g:"All periods",first:"April 2025"},
+  "Good Pay":{i:"All periods",g:"All periods",first:"April 2025"},
+  "PTO / Benefits":{i:"From July 2025",g:"All periods",first:"April 2025"},
+  "Work-Life Balance (Positive)":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"},
+  "Good Leadership / Cares":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"},
+  "Good Career Experience":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"},
+  "Workload":{i:"All periods",g:"All periods",first:"April 2025"},
+  "Culture — Negative":{i:"All periods",g:"Not tracked in decks",first:"April 2025"},
+  "Communication":{i:"All periods",g:"All periods",first:"April 2025"},
+  "Upper Management":{i:"All periods",g:"All periods",first:"April 2025"},
+  "Organizational / Structural Changes":{i:"Not tracked in decks",g:"All periods",first:"April 2025"},
+  "Pay — Negative":{i:"From July 2025",g:"Not tracked in decks",first:"July 2025"},
+  "Layoffs / AI":{i:"From December 2025",g:"From December 2025",first:"December 2025"},
+  "Bonuses / Merit Raises":{i:"From April 2025",g:"From March 2026",first:"April 2025"},
+  "Training":{i:"From March 2026",g:"Confirmed in 2026 dataset",first:"March 2026"},
+  "Outsourcing Roles":{i:"Not tracked in decks",g:"From March 2026",first:"March 2026"},
+  "Not Valuing Employees":{i:"Track when present",g:"Track when present",first:"June 2026"},
+  "RTO (Return to Office)":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"},
+  "Lack of Development Opportunities":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"},
+  "Micromanagement":{i:"Not confirmed on Indeed",g:"Confirmed",first:"2026 dataset review"},
+  "Lack of Processes / Policies":{i:"Not confirmed on Indeed",g:"Confirmed",first:"2026 dataset review"},
+  "Unclear Roles":{i:"Confirmed",g:"Confirmed",first:"2026 dataset review"}
+};
+
+/* The original 12-column contract, unchanged and in its original order. Historical
+   exports use exactly this. */
+const SCHEMA_BASE=["Review Source","Review Date","Review Title","Sentiment","Primary Theme","Secondary Themes","Pros Summary","Cons Summary","Key Topics","Review Summary","Analyst Notes","Duplicate Flag"];
+/* Reviewer-context fields are appended, never inserted, so positions 1-12 keep their
+   meaning and files exported before this change still load. */
+const SCHEMA_EXTRA=["Location","Employment Status","Job Title"];
+const SCHEMA=SCHEMA_BASE.concat(SCHEMA_EXTRA);
+const EMPLOYMENT=["Current Employee","Past Employee"];
+const SENTIMENTS = ["Positive","Negative","Mixed","Neutral"];
+const SENT_STYLE = {Positive:{cls:"b-pos",g:"+",hex:"#5E8C6A"},Negative:{cls:"b-neg",g:"\u2212",hex:"#A6474B"},Mixed:{cls:"b-mix",g:"\u00B1",hex:"#408DF1"},Neutral:{cls:"b-neu",g:"\u00B7",hex:"#9AA6AE"}};
+const SERIES = ["#011043","#408DF1","#B7D7EE","#C6D3AD","#D9DEE1","#13263F","#36749D","#8DB5CC"];
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const NA = "N/A";
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function blank(v){return v==null||String(v).trim()===""||String(v).trim().toUpperCase()==="N/A";}
+function val(v){return blank(v)?NA:String(v).trim();}
+function pct(n,d){return d?Math.round(n/d*1000)/10:0;}
+function pctStr(n,d){return d?pct(n,d).toFixed(1)+"%":"—";}
+function trunc(s,n){s=String(s||"");return s.length>n?s.slice(0,n-1)+"\u2026":s;}
+function uniq(a){return Array.from(new Set(a));}
+function splitList(s){if(blank(s))return[];return String(s).split(";").map(x=>x.trim()).filter(x=>x&&x.toUpperCase()!=="N/A");}
+function joinList(a){return a&&a.length?a.join("; "):NA;}
+function themePolarity(t){return POS_SECONDARY.indexOf(t)>-1?"Positive":(NEG_SECONDARY.indexOf(t)>-1?"Negative":"Unclassified");}
+/* Baseline themes carry their polarity in the taxonomy. Themes named through "Other"
+   carry it in the session registry (page 1) or in the Analyst Notes annotation the
+   export wrote (page 2), so an off-baseline theme still sorts into the right view. */
+function polarityOf(t){
+  const base=themePolarity(t);
+  if(base!=="Unclassified")return base;
+  const key=String(t).toLowerCase();
+  if(typeof P1!=="undefined"&&P1.customThemes&&P1.customThemes[t])return P1.customThemes[t];
+  if(typeof P2!=="undefined"&&P2.customPolarity&&P2.customPolarity[key])return P2.customPolarity[key];
+  return "Unclassified";
+}
+function monthKey(d){return /^\d{4}-\d{2}/.test(d||"")?d.slice(0,7):null;}
+function monthLabel(k){if(!k)return"Undated";const[y,m]=k.split("-");return["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m-1]+" "+y;}
+function sentBadge(s){const st=SENT_STYLE[s];if(!st)return '<span class="badge b-flat">Unclassified</span>';return '<span class="badge '+st.cls+'"><span class="g">'+st.g+'</span>'+esc(s)+'</span>';}
+function themeTag(t){const p=polarityOf(t);const cls=p==="Positive"?"pos":p==="Negative"?"neg":"emg";return '<span class="tag '+cls+'">'+esc(t)+'</span>';}
+function flash(el,text,kind){if(!el)return;el.className="msg "+(kind==="err"?"err":kind==="ok"?"ok":"");el.textContent=text;if(kind==="ok"){clearTimeout(el._t);el._t=setTimeout(()=>{if(el.textContent===text)el.textContent="";},4200);}}
+function download(name,text){
+  try{
+    const b=new Blob([text],{type:"text/csv;charset=utf-8"});
+    const u=URL.createObjectURL(b);const a=document.createElement("a");
+    a.href=u;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},400);
+    return true;
+  }catch(e){return false;}
+}
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes());}
+
+/* =========================================================
+   CSV — RFC4180 parse and write, no libraries
+   ========================================================= */
+function csvParse(text){
+  const rows=[];let row=[],cell="",q=false;
+  text=String(text).replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===","){row.push(cell);cell="";}
+      else if(c==="\n"){row.push(cell);rows.push(row);row=[];cell="";}
+      else if(c==="\r"){/* skip */}
+      else cell+=c;
+    }
+  }
+  if(cell!==""||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.length>1||(r[0]||"").trim()!=="");
+}
+function csvCell(v){
+  const s=v==null?"":String(v);
+  return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function csvWrite(headers,rows){
+  return [headers.map(csvCell).join(",")].concat(rows.map(r=>r.map(csvCell).join(","))).join("\r\n")+"\r\n";
+}
+
+/* =========================================================
+   DUPLICATE DETECTION (Section 16) — flag, never delete
+   ========================================================= */
+function toks(s){return (String(s||"").toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(w=>w.length>2));}
+function jac(a,b){
+  if(!a.length||!b.length)return 0;
+  const A=new Set(a),B=new Set(b);let hit=0;
+  A.forEach(w=>{if(B.has(w))hit++;});
+  return hit/(A.size+B.size-hit);
+}
+function dayGap(a,b){
+  if(!/^\d{4}-\d{2}-\d{2}/.test(a||"")||!/^\d{4}-\d{2}-\d{2}/.test(b||""))return null;
+  return Math.abs((new Date(a)-new Date(b))/86400000);
+}
+function dupPair(a,b){
+  const bothTitles=!blank(a.title)&&!blank(b.title);
+  const ts=bothTitles?jac(toks(a.title),toks(b.title)):null;
+  const bs=jac(toks(a.body),toks(b.body));
+  const sameSource=a.source&&b.source&&a.source===b.source;
+  const g=dayGap(a.date,b.date);
+  /* Guard: on the dashboard the only body text is the analyst's own summaries, and two
+     different reviews on the same theme can read alike. A clearly different title vetoes
+     the match unless the body is byte-identical, same source, and within a week. */
+  const identical=!!(a.body&&b.body&&a.body.trim()===b.body.trim());
+  const closeInTime=!!(sameSource&&g!==null&&g<=7);
+  if(ts!==null&&ts<0.4&&!closeInTime)
+    return{score:0,ts:ts,bs:bs,gap:g,exact:false};
+  let score=(a.body&&b.body)?(ts===null?bs:0.35*ts+0.65*bs):(ts===null?0:ts*0.8);
+  if(sameSource)score+=0.06;
+  if(g===0)score+=0.08; else if(g!==null&&g<=7)score+=0.03;
+  const exact=(identical&&(ts===null||ts>=0.6))
+    ||(bothTitles&&a.title.trim().toLowerCase()===b.title.trim().toLowerCase()&&bs>0.6);
+  return {score:exact?1:score,ts:ts,bs:bs,gap:g,exact:exact};
+}
+/* recs need {source,date,title,body}. Returns groups of indices + per-record match info. */
+function detectDuplicates(recs,threshold){
+  threshold=threshold||0.70;
+  const n=recs.length, parent=recs.map((_,i)=>i), why=recs.map(()=>[]);
+  const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+    const r=dupPair(recs[i],recs[j]);
+    if(r.score>=threshold){
+      const a=find(i),b=find(j);if(a!==b)parent[a]=b;
+      const note=r.exact?"identical wording":"wording overlap "+Math.round(r.bs*100)+"%";
+      why[i].push({with:j,note:note});why[j].push({with:i,note:note});
+    }
+  }
+  const groups={};
+  for(let i=0;i<n;i++){const r=find(i);(groups[r]=groups[r]||[]).push(i);}
+  return {groups:Object.values(groups).filter(g=>g.length>1),why:why};
+}
+/* =========================================================
+   IN-PAGE CLASSIFIER
+   Deterministic cue matching against the framework taxonomy. This is a
+   first pass an analyst confirms or overrides — it is not a language model,
+   it does not read context, and it is labelled as such everywhere it appears.
+   ========================================================= */
+
+/* Single words decisive enough to carry a theme on their own. Everything else
+   needs either a multi-word phrase or two separate hits. */
+const STRONG_SINGLE=["toxic","layoff","layoffs","micromanag","outsourc","offshor","reorg","restructur","underpaid","burnout","overworked","understaffed","rto","undervalued","unsustainable","expendable","thankless","disorganiz","chaotic","bureaucra","nepotism","favoritism"];
+function cueWeight(p){return p.indexOf(" ")>-1?1:(STRONG_SINGLE.indexOf(p)>-1?1:0.6);}
+
+const LEX={
+"Good People / Culture":["great people","good people","people are great","people are the best","supportive team","great team","team is great","coworkers are","colleagues are","great colleagues","good colleagues","smart colleagues","talented colleagues","smart people","talented people","coworkers","colleagues","friendly","great culture","culture is great","collaborative","love my team","people here"],
+"Growth / Opportunity":["growth opportunit","opportunity to grow","room to grow","career growth","advancement opportunit","chance to advance","promoted quickly","opportunities to move","internal mobility"],
+"Good Pay":["pay is good","good pay","great pay","competitive pay","pay is competitive","paid well","paid fairly","salary is good","good salary","decent pay","compensation is competitive","base pay is"],
+"PTO / Benefits":["benefits are good","benefits are great","great benefits","good benefits","generous pto","pto is","paid time off","time off is","vacation policy","401k","health insurance","medical coverage","benefits package"],
+"Work-Life Balance (Positive)":["work life balance is good","work-life balance is good","good work life balance","good work-life balance","great work-life","flexible schedule","flexibility is","work from home","remote work is","balance is good"],
+"Good Leadership / Cares":["leadership cares","management cares","cares about employees","cares about their people","my manager is great","great manager","great boss","supportive manager","supportive leadership","manager supports","leaders listen"],
+"Good Career Experience":["learned a lot","great experience","good place to start","good learning experience","stepping stone","looks good on a resume","proud to work","glad i joined"],
+
+"Workload":["workload","overworked","too much work","understaffed","short staffed","short-staffed","burn out","burnout","working late","long hours","unsustainable","overwhelming","doing the job of","stretched thin","no backfill","wearing too many hats","never enough time","always on"],
+"Culture — Negative":["toxic","culture has become","culture is toxic","cliqu","office politics","politics are","favoritism","nepotism","gossip","culture of fear","morale is low","low morale","hostile","culture has declined"],
+"Communication":["communication","not communicated","poorly communicated","lack of transparency","transparency","no transparency","find out last minute","kept in the dark","left in the dark","siloed","information does not flow","nobody tells"],
+"Upper Management":["upper management","senior leadership","senior management","executive team","executives","c-suite","leadership does not","leadership doesn't","out of touch","leadership team","the ceo","new ceo"],
+"Organizational / Structural Changes":["reorg","restructur","constant change","constantly changing","acquisition","acquired","merger","integration","org chart","organizational change","structural change","shifting priorities","revolving door","new leadership every","changing direction"],
+"Pay — Negative":["underpaid","pay is low","low pay","below market","pay has not kept","salary is low","not paid enough","pay freeze","wages are","cost of living","pay does not","pay is not competitive"],
+"Layoffs / AI":["layoff","laid off","riffed","reduction in force","job cuts","rounds of cuts","ai replacing","replaced by ai","ai will replace","automating roles","job security","fear of losing","cut the team"],
+"Bonuses / Merit Raises":["bonus","merit increase","merit raise","annual raise","no raises","raise in","cost of living increase","incentive plan","comp review","target bonus"],
+"Training":["training","onboarding","no training","thrown into","learning curve","no documentation","ramp up","left to figure it out","sink or swim"],
+"Outsourcing Roles":["outsourc","offshor","moved roles overseas","contractors are","replaced with contractors","third party team","sent overseas"],
+"Not Valuing Employees":["not valued","don't feel valued","do not feel valued","undervalued","just a number","expendable","no recognition","never recognized","thankless","not appreciated","treated like a","treated as a"],
+"RTO (Return to Office)":["return to office","rto","back to the office","back in the office","in office five","five days a week","four days in the office","office mandate","hybrid mandate","forced back","commute"],
+"Lack of Development Opportunities":["no career path","no path to promotion","no clear path","no growth","dead end","no advancement","no promotion","stagnant","no development","nowhere to go","career is stuck","no room to grow"],
+"Micromanagement":["micromanag","every single task","no autonomy","not trusted","constantly checked","looking over your shoulder","need approval for","hand holding"],
+"Lack of Processes / Policies":["no process","lack of process","no clear process","no policies","no procedures","disorganiz","chaos","chaotic","ad hoc","wild west","inconsistent process","nothing is documented","make it up as"],
+"Unclear Roles":["unclear role","role is unclear","unclear responsibilit","unclear expectations","no job description","who owns","ownership is unclear","overlapping responsibilit","scope creep","not sure what my","wear many hats","job keeps changing"]
+};
+
+const TRACK_LEX={
+"IPO":["ipo","going public","public offering","pre-ipo"],
+"Too Corporate":["too corporate","corporate feel","lost the startup","startup feel is gone","bureaucra","red tape","corporate machine"],
+"Parking Lot / Walk to Office":["parking lot","parking is","nowhere to park","walk to the office","long walk from"],
+"Fast-Paced / Interesting Work":["fast paced","fast-paced","interesting work","challenging work","never boring","exciting projects","meaningful work"],
+"Office / Location":["the office is nice","office space","new building","the campus","facilities are","location is convenient"],
+"Support":["lack of support","no support from","unsupported","little support"],
+"Tech":["tech stack","technology is","outdated systems","legacy systems","tools are outdated","the tooling"],
+"Learning":["learning opportunit","lots to learn","learn a lot","learning is"],
+"Organized":["well organized","well-organized","very organized","runs smoothly"],
+"Hiring Process":["hiring process","interview process","recruiting process","recruiter never","took months to hire"],
+"Community Impact":["community impact","give back","volunteer","charitable","nonprofit work"]
+};
+
+const POS_CUES=["great","good","excellent","amazing","love","enjoy","enjoyed","happy","best","supportive","fair","generous","appreciate","appreciated","strong","solid","wonderful","positive","recommend","fantastic","helpful","flexible","proud","rewarding","respectful","smart people","transparent","invested in"];
+const NEG_CUES=["bad","poor","terrible","awful","worst","hate","hated","unfortunately","toxic","stressful","stress","frustrat","disappoint","unfair","overworked","underpaid","burnout","quit","avoid","unsustainable","chaos","broken","ignored","worried","anxiety","exhausted","exhausting","declined","deteriorat","struggl","nightmare","dread","cannot recommend","would not recommend","do not recommend","unresponsive","went silent","never heard back","no follow up","waste of time","ghosted","red flag"];
+
+/* Irony and scare quotes defeat cue matching outright. When they show up the
+   suggestion is capped to low confidence and sent to an analyst. */
+const IRONY=[/\bif you (enjoy|like|don't mind|dont mind)\b/,/\bsupposedly\b/,/\bin theory\b/,/\bon paper\b/,/\bso-called\b/,/\bair quotes\b/,/^\s*sure,/,/\blol\b/,/\/s\b/,/["\u201C'][a-z]{4,15}["\u201D']/];
+function ironyFlags(t){return IRONY.filter(re=>re.test(t)).length;}
+
+/* Canonical home for each secondary theme: the first primary in taxonomy order
+   whose mapping lists it. Derived from MAPPING so it cannot drift out of sync.
+   This stops broad categories like Work Environment, which the mapping lists
+   against many themes, from winning on breadth alone. */
+const PRIMARY_HOME={};
+ALL_SECONDARY.forEach(t=>{
+  const home=PRIMARY_THEMES.find(p=>(MAPPING[p]||[]).indexOf(t)>-1);
+  if(home)PRIMARY_HOME[t]=home;
+});
+const NEGATORS=/\b(not|never|no|hardly|barely|nothing|isn't|aren't|wasn't|don't|doesn't|didn't|won't|lack of|lacks)\b/;
+
+function hits(text,patterns){
+  const found=[];let w=0;
+  patterns.forEach(p=>{if(text.indexOf(p)>-1){found.push(p);w+=cueWeight(p);}});
+  return{w:Math.min(w,2.5),found:found};
+}
+/* A positive word inside reach of a negator counts against, not for. */
+function cueScore(text){
+  let pos=0,neg=0;const found={pos:[],neg:[]};
+  POS_CUES.forEach(c=>{
+    const i=text.indexOf(c);if(i<0)return;
+    const lead=text.slice(Math.max(0,i-16),i);
+    if(NEGATORS.test(lead)){neg+=1;found.neg.push("not "+c);}
+    else{pos+=1;found.pos.push(c);}
+  });
+  NEG_CUES.forEach(c=>{if(text.indexOf(c)>-1){neg+=1;found.neg.push(c);}});
+  return{pos:pos,neg:neg,found:found};
+}
+
+function splitFragments(text){
+  return text.split(/[.!?\n]+/)
+    .reduce((a,s)=>a.concat(s.split(/\b(?:but|however|although|though|that said|on the other hand)\b/i)),[])
+    .map(s=>s.trim().replace(/^[,;\-\s]+/,""))
+    .filter(s=>s.length>12);
+}
+function fragmentPolarity(frag,themes){
+  const t=frag.toLowerCase();
+  const s=cueScore(t);
+  let pos=s.pos,neg=s.neg;
+  /* a fragment carrying a theme cue is about that theme, so it inherits its polarity */
+  (themes||[]).forEach(x=>{
+    const hit=x.cues.some(c=>t.indexOf(c)>-1);
+    if(!hit)return;
+    const p=themePolarity(x.theme);
+    if(p==="Positive")pos+=1;else if(p==="Negative")neg+=1;
+  });
+  return{pos:pos,neg:neg};
+}
+function extractProsCons(raw,themes){
+  const t=raw||"";
+  /* Glassdoor-style "Pros: … Cons: …" is explicit — honour it rather than guessing. */
+  const pm=/\bpros?\s*[:\-\u2014]\s*([\s\S]*?)(?=\bcons?\s*[:\-\u2014]|$)/i.exec(t);
+  const cm=/\bcons?\s*[:\-\u2014]\s*([\s\S]*?)$/i.exec(t);
+  if(pm||cm)return{pros:trunc((pm?pm[1]:"").trim().replace(/\s+/g," "),240),
+                   cons:trunc((cm?cm[1]:"").trim().replace(/\s+/g," "),240),explicit:true};
+  const pros=[],cons=[];
+  splitFragments(t).forEach(f=>{
+    const s=fragmentPolarity(f,themes);
+    if(s.pos>s.neg)pros.push(f);
+    else if(s.neg>s.pos)cons.push(f);
+  });
+  return{pros:trunc(pros.join("; "),240),cons:trunc(cons.join("; "),240),explicit:false};
+}
+
+function classifyReview(rec){
+  const raw=rec.text||"";
+  const t=" "+raw.toLowerCase().replace(/[\u2019']/g,"'").replace(/\s+/g," ")+" ";
+  const themes=[],cues=[];
+  Object.keys(LEX).forEach(theme=>{
+    const h=hits(t,LEX[theme]);
+    if(h.w>=1){themes.push({theme:theme,w:h.w,cues:h.found});h.found.forEach(c=>cues.push(c));}
+  });
+  themes.sort((a,b)=>b.w-a.w);
+
+  const emerging=[];
+  Object.keys(TRACK_LEX).forEach(theme=>{
+    const h=hits(t,TRACK_LEX[theme]);
+    if(h.w>=1)emerging.push({theme:theme,cues:h.found});
+  });
+
+  const pc=extractProsCons(raw,themes);
+
+  /* sentiment: cue words plus the polarity of the themes actually assigned */
+  const cs=cueScore(t);
+  let pos=cs.pos,neg=cs.neg;
+  themes.forEach(x=>{
+    const p=themePolarity(x.theme);
+    if(p==="Positive")pos+=1.5*Math.min(x.w,2);
+    else if(p==="Negative")neg+=1.5*Math.min(x.w,2);
+  });
+  const total=pos+neg;
+  let sentiment;
+  if(total===0)sentiment="Neutral";
+  else if(total<1.5){
+    /* thin evidence: one-sided still has a direction, balanced does not */
+    sentiment=(pos>0&&neg>0)?"Neutral":(pos>neg?"Positive":"Negative");
+  }else{
+    const share=pos/total;
+    sentiment=share>=0.72?"Positive":share<=0.28?"Negative":"Mixed";
+  }
+  /* A reviewer who filled in both Pros and Cons, and put real substance in each,
+     has told us it is Mixed. Trust that over the cue tally, which over-weights
+     whichever section happens to use more loaded words. */
+  let bothSides=false;
+  if(pc.explicit&&pc.pros&&pc.cons){
+    const ps=fragmentPolarity(pc.pros,themes),ns=fragmentPolarity(pc.cons,themes);
+    if(ps.pos>=1&&ns.neg>=1){sentiment="Mixed";bothSides=true;}
+  }
+
+  /* primary theme: the canonical home carrying the most assigned weight.
+     Ties go to the home of the single strongest theme, then taxonomy order. */
+  const pscore={};
+  themes.forEach(x=>{const h=PRIMARY_HOME[x.theme];if(h)pscore[h]=(pscore[h]||0)+x.w;});
+  let primary="";
+  const ranked=Object.keys(pscore).sort((a,b)=>
+    (pscore[b]-pscore[a])||(PRIMARY_THEMES.indexOf(a)-PRIMARY_THEMES.indexOf(b)));
+  if(ranked.length){
+    primary=ranked[0];
+    if(ranked[1]&&pscore[ranked[1]]===pscore[ranked[0]]){
+      const lead=PRIMARY_HOME[themes[0].theme];
+      if(lead&&pscore[lead]===pscore[ranked[0]])primary=lead;
+    }
+  }else{
+    const PRIMARY_CUES={
+      "Compensation & Benefits":["pay","salary","bonus","benefits","401k"],
+      "Leadership & Management":["manager","leadership","boss","management"],
+      "Career Growth":["promotion","career","growth","development"],
+      "Work-Life Balance":["hours","balance","workload","flexible","remote"],
+      "Company Culture":["culture","values","morale"],
+      "Team & Coworkers":["team","coworkers","colleagues","people"],
+      "Recognition & Appreciation":["recognition","appreciated","valued"],
+      "Process & Operations":["process","policy","tools","systems"],
+      "Job Security & Stability":["layoff","job security","stability","cuts"],
+      "Customer/Business Strategy":["strategy","customers","clients","direction"],
+      "Work Environment":["office","environment","workplace","facilities"]
+    };
+    let best=null,bw=0;
+    Object.keys(PRIMARY_CUES).forEach(p=>{const h=hits(t,PRIMARY_CUES[p]);if(h.w>bw){bw=h.w;best=p;}});
+    primary=bw>=0.6?best:"Other";
+  }
+
+  const secondary=themes.map(x=>x.theme);
+  const negT=secondary.filter(x=>themePolarity(x)==="Negative");
+  const posT=secondary.filter(x=>themePolarity(x)==="Positive");
+  let summary;
+  if(secondary.length){
+    summary="Account centres on "+primary+"."
+      +(negT.length?" Concerns raised: "+negT.join(", ")+".":"")
+      +(posT.length?" Positives noted: "+posT.join(", ")+".":"");
+  }else summary="General commentary with no clearly dominant theme in the framework.";
+
+  const themeW=themes.reduce((a,x)=>a+x.w,0);
+  let conf=Math.min(1,0.35*Math.min(themeW/3,1)+0.35*Math.min(total/4,1)+0.30*Math.min(raw.length/300,1));
+  const irony=ironyFlags(t);
+  if(irony)conf=Math.min(conf,0.38);
+  const level=conf>=0.7?"high":conf>=0.45?"medium":"low";
+
+  const evidence=[];
+  themes.forEach(x=>evidence.push(x.theme+" \u2190 "+x.cues.join(", ")));
+  evidence.push("Sentiment cues \u2014 positive: "+(cs.found.pos.join(", ")||"none")+" | negative: "+(cs.found.neg.join(", ")||"none"));
+  if(pc.explicit)evidence.push("Pros/Cons taken from the reviewer's own labelled sections.");
+  if(bothSides)evidence.push("Both labelled sections carry substance, so sentiment is set to Mixed regardless of the cue tally.");
+  if(!themes.length)evidence.push("No baseline secondary theme met the assignment threshold.");
+  if(irony)evidence.push("Irony or scare-quote wording detected \u2014 cue matching is unreliable here, so confidence is capped. Read this one yourself.");
+  emerging.forEach(e=>evidence.push("Tracking-list topic \u201C"+e.theme+"\u201D \u2190 "+e.cues.join(", ")));
+
+  return{sentiment:sentiment,primary:primary,secondary:secondary,pros:pc.pros,cons:pc.cons,
+    topics:uniq(cues).slice(0,6).join("; "),summary:summary,
+    emerging:emerging.map(e=>e.theme),conf:conf,level:level,evidence:evidence};
+}
+
+/* Apply a suggestion to a record without destroying analyst edits already there. */
+function applyClassification(r){
+  if(!r.text){return false;}
+  const c=classifyReview(r);
+  r.sentiment=c.sentiment;r.primary=c.primary;r.secondary=c.secondary;
+  r.pros=c.pros;r.cons=c.cons;r.topics=c.topics;r.summary=c.summary;
+  r.conf=c.conf;r.level=c.level;r.evidence=c.evidence;r.auto=true;r.status="Suggested";
+  let notes=(r.notes||"").split(" | ").filter(x=>x&&!/^Emerging theme:/i.test(x)).join(" | ");
+  if(c.emerging.length)notes=(notes?notes+" | ":"")+"Emerging theme: "+c.emerging.join(", ");
+  if(!c.secondary.length)notes=(notes?notes+" | ":"")+"No baseline secondary theme matched \u2014 check for an emerging theme";
+  if(c.evidence.some(e=>/Irony or scare-quote/.test(e)))notes=(notes?notes+" | ":"")+"Possible irony \u2014 classifier output unreliable, needs a read";
+  r.notes=notes;
+  return true;
+}
+/* =========================================================
+   PAGE 1 — working set
+   ========================================================= */
+const P1={reviews:[],seq:1,editing:null,customThemes:{}};
+
+function mkRec(o){
+  return {id:"R"+(P1.seq++),source:o.source||"",date:o.date||"",title:o.title||"",text:o.text||"",
+    location:o.location||"",employment:o.employment||"",jobTitle:o.jobTitle||"",
+    sentiment:o.sentiment||"",primary:o.primary||"",secondary:o.secondary||[],pros:o.pros||"",cons:o.cons||"",
+    topics:o.topics||"",summary:o.summary||"",notes:o.notes||"",dupFlag:"",dupNote:"",
+    status:"Unclassified",auto:false,conf:0,level:"",evidence:[]};
+}
+function isClassified(r){return !!(r.sentiment&&r.primary);}
+/* Three fields in one column: the table is already wide and these read as a unit. */
+function reviewerCell(r){
+  const emp=r.employment
+    ? '<span class="badge '+(r.employment==="Past Employee"?"b-flat":"b-nav")+'">'+esc(r.employment)+'</span>'
+    : '<span class="badge b-flat">Not stated</span>';
+  const bits=[];
+  if(!blank(r.jobTitle))bits.push(esc(r.jobTitle));
+  if(!blank(r.location))bits.push(esc(r.location));
+  return emp+(bits.length?'<div class="t-sub">'+bits.join(" \u00B7 ")+'</div>':'');
+}
+function statusBadge(r){
+  if(r.status==="Confirmed")return '<span class="badge b-pos"><span class="g">\u2713</span>Confirmed</span>';
+  if(r.status==="Suggested"){
+    const cls=r.level==="low"?"b-alert":r.level==="medium"?"b-mix":"b-emerging";
+    return '<span class="badge '+cls+'"><span class="g">\u25C6</span>Suggested \u00B7 '+esc(r.level||"?")+'</span>';
+  }
+  return '<span class="badge b-flat">Unclassified</span>';
+}
+/* Low confidence, or nothing in the taxonomy matched — read these before confirming. */
+function needsEye(r){return r.status==="Suggested"&&(r.level==="low"||!r.secondary.length);}
+
+function p1Dupes(){
+  const recs=P1.reviews.map(r=>({source:r.source,date:r.date,title:r.title,
+    body:r.text||[r.pros,r.cons,r.summary].filter(x=>!blank(x)).join(" ")}));
+  const {groups,why}=detectDuplicates(recs);
+  P1.reviews.forEach(r=>{r.dupFlag="";r.dupNote="";});
+  groups.forEach(g=>{
+    g.forEach(i=>{
+      const r=P1.reviews[i];
+      r.dupFlag="Potential Duplicate";
+      const others=g.filter(j=>j!==i).map(j=>P1.reviews[j].id);
+      const note=(why[i][0]||{}).note||"substantial similarity";
+      r.dupNote="Potential duplicate of "+others.join(", ")+" ("+note+")";
+    });
+  });
+  return groups.length;
+}
+
+function p1Render(){
+  const rs=P1.reviews;
+  const sug=rs.filter(r=>r.status==="Suggested").length;
+  const conf=rs.filter(r=>r.status==="Confirmed").length;
+  /* Workflow counters only \u2014 all analytics belong to page 2. */
+  $("p1Kpis").innerHTML=[
+    ["Reviews in set",rs.length,""],
+    ["Awaiting confirmation",sug,sug?"suggested, not yet reviewed":"nothing pending"],
+    ["Confirmed",conf,rs.length?pctStr(conf,rs.length)+" of set":""]
+  ].map(k=>'<div class="kpi-card"><div class="label">'+esc(k[0])+'</div><div class="value">'+esc(k[1])+'</div>'+(k[2]?'<div class="sub">'+esc(k[2])+'</div>':'')+'</div>').join("");
+
+  const host=$("wsTableHost");
+  if(!rs.length){host.innerHTML='<div class="empty">Add Glassdoor or Indeed reviews to begin the analysis.</div>';$("btnExport").disabled=true;$("btnCopyCsv").disabled=true;return;}
+  $("btnExport").disabled=false;$("btnCopyCsv").disabled=false;
+  const head=["ID","Status","Source","Date","Reviewer","Title","Sentiment","Primary theme","Secondary themes","Pros summary","Cons summary","Key topics","Review summary","Analyst notes","Duplicate flag",""];
+  let h='<div class="table-wrap"><table><thead><tr>'+head.map(x=>'<th>'+esc(x)+'</th>').join("")+'</tr></thead><tbody>';
+  rs.forEach(r=>{
+    const notes=[r.notes,r.dupNote].filter(x=>!blank(x)).join(" \u2014 ");
+    h+='<tr'+(r.dupFlag?' class="dup"':'')+'>'
+      +'<td class="nowrap t-sub">'+esc(r.id)+'</td>'
+      +'<td class="nowrap">'+statusBadge(r)+(r.auto&&r.conf?'<div class="t-sub">confidence '+r.conf.toFixed(2)+'</div>':'')+'</td>'
+      +'<td class="nowrap">'+esc(val(r.source))+'</td>'
+      +'<td class="nowrap">'+esc(val(r.date))+'</td>'
+      +'<td class="nowrap">'+reviewerCell(r)+'</td>'
+      +'<td class="wrap"><span class="t-title">'+esc(trunc(val(r.title),70))+'</span>'+(r.text?'<div class="t-sub">'+esc(trunc(r.text,110))+'</div>':'')+'</td>'
+      +'<td class="nowrap">'+(r.sentiment?sentBadge(r.sentiment):'<span class="badge b-flat">Unclassified</span>')+'</td>'
+      +'<td class="wrap">'+esc(val(r.primary))+'</td>'
+      +'<td class="wrap">'+(r.secondary.length?r.secondary.map(themeTag).join(" "):NA)+'</td>'
+      +'<td class="wrap">'+esc(trunc(val(r.pros),90))+'</td>'
+      +'<td class="wrap">'+esc(trunc(val(r.cons),90))+'</td>'
+      +'<td class="wrap">'+esc(trunc(val(r.topics),70))+'</td>'
+      +'<td class="wrap">'+esc(trunc(val(r.summary),110))+'</td>'
+      +'<td class="wrap">'+esc(trunc(blank(notes)?NA:notes,110))+'</td>'
+      +'<td class="nowrap">'+(r.dupFlag?'<span class="badge b-alert"><span class="g">\u26A0</span>Potential duplicate</span>':'<span class="badge b-flat">\u2014</span>')+'</td>'
+      +'<td class="nowrap">'
+        +(r.status==="Suggested"?'<button class="btn small" data-confirm="'+r.id+'">Confirm</button> ':'')
+        +'<button class="btn quiet small" data-edit="'+r.id+'">Edit</button> '
+        +'<button class="btn quiet small" data-del="'+r.id+'">Remove</button></td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>';
+  host.innerHTML=h;
+  host.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEditor(b.dataset.edit));
+  host.querySelectorAll("[data-confirm]").forEach(b=>b.onclick=()=>{
+    const r=P1.reviews.find(x=>x.id===b.dataset.confirm);
+    if(!r)return;
+    r.status="Confirmed";p1Render();
+    flash($("msgWs"),r.id+" confirmed as classified.","ok");
+  });
+  host.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    P1.reviews=P1.reviews.filter(x=>x.id!==b.dataset.del);
+    if(P1.editing===b.dataset.del)closeEditor();
+    p1Dupes();p1Render();flash($("msgWs"),"Record removed.","ok");
+  });
+}
+
+/* ---- classification editor ---- */
+/* Custom themes named through "Other" are registered for the session so the same
+   name can be reused on later reviews instead of being retyped slightly differently. */
+function customsOf(pol){
+  return Object.keys(P1.customThemes).filter(t=>P1.customThemes[t]===pol).sort();
+}
+function buildSecondaryPicker(primary,selected,others){
+  const sug=MAPPING[primary]||[];
+  others=others||{};
+  const group=(label,list,pol,otherId,boxId)=>{
+    const customs=customsOf(pol);
+    const box=list.concat(customs);
+    const otherOpen=!!others[pol];
+    return '<div class="theme-group"><span class="lbl">'+esc(label)+'</span><div class="checkgrid">'
+      +box.map(t=>'<label><input type="checkbox" value="'+esc(t)+'"'+(selected.indexOf(t)>-1?" checked":"")+'><span>'+esc(t)
+        +(sug.indexOf(t)>-1?' <span class="badge b-mix" style="font-size:.62rem"><span class="g">\u25CF</span>suggested</span>':'')
+        +(customs.indexOf(t)>-1?' <span class="badge b-emerging" style="font-size:.62rem"><span class="g">\u25C6</span>new</span>':'')
+        +'</span></label>').join("")
+      +'<label><input type="checkbox" data-other="'+pol+'" id="'+otherId+'"'+(otherOpen?" checked":"")+'><span><strong>Other</strong> \u2014 name a new theme</span></label>'
+      +'</div>'
+      +'<div id="'+boxId+'Wrap"'+(otherOpen?'':' hidden')+' style="margin-top:10px;max-width:520px">'
+      +'<input type="text" id="'+boxId+'" value="'+esc(others[pol]||"")+'" placeholder="e.g. Hiring Process \u2014 separate several with a comma or semicolon">'
+      +'<div class="t-sub" style="margin-top:5px">Recorded as a '+pol.toLowerCase()+' theme and flagged as emerging, so the dashboard tracks it separately from the baseline.</div>'
+      +'</div></div>';
+  };
+  return group("Positive secondary themes",POS_SECONDARY,"Positive","edOtherPosCb","edOtherPos")
+    +group("Negative secondary themes",NEG_SECONDARY,"Negative","edOtherNegCb","edOtherNeg");
+}
+/* Rebuild the picker without losing what is already ticked or typed. */
+function pickerState(){
+  const host=$("edSecondary");
+  const checked=Array.from(host.querySelectorAll('input[type=checkbox]:checked'))
+    .filter(c=>!c.dataset.other).map(c=>c.value);
+  const others={};
+  ["Positive","Negative"].forEach(pol=>{
+    const cb=host.querySelector('input[data-other="'+pol+'"]');
+    const box=$(pol==="Positive"?"edOtherPos":"edOtherNeg");
+    if(cb&&cb.checked)others[pol]=box?box.value:"";
+  });
+  return{checked:checked,others:others};
+}
+function wirePicker(){
+  const host=$("edSecondary");
+  host.querySelectorAll("[data-other]").forEach(cb=>cb.onchange=()=>{
+    const wrap=$((cb.dataset.other==="Positive"?"edOtherPos":"edOtherNeg")+"Wrap");
+    if(wrap)wrap.hidden=!cb.checked;
+    if(cb.checked){const box=$(cb.dataset.other==="Positive"?"edOtherPos":"edOtherNeg");if(box)box.focus();}
+  });
+}
+function refreshPicker(){
+  const st=pickerState();
+  $("edSecondary").innerHTML=buildSecondaryPicker($("edPrimary").value,st.checked,st.others);
+  wirePicker();
+}
+/* Delimiters would corrupt the CSV fields these names travel in. */
+function cleanThemeName(n){
+  return String(n).replace(/[;|]+/g," / ").replace(/\s+/g," ").replace(/^[\s\/]+|[\s\/]+$/g,"").slice(0,60);
+}
+function openEditor(id){
+  const r=P1.reviews.find(x=>x.id===id);if(!r)return;
+  P1.editing=id;
+  $("editorPanel").hidden=false;
+  $("edId").textContent="\u2014 "+r.id+" \u00B7 "+val(r.source)+" \u00B7 "+val(r.date);
+  $("edSourceText").innerHTML='<strong>'+esc(val(r.title))+'</strong><div style="margin-top:6px">'+esc(r.text||"No review text captured for this record.")+'</div>';
+  $("edEmployment").value=r.employment||"";
+  $("edJobTitle").value=r.jobTitle||"";
+  $("edLocation").value=r.location||"";
+  $("edSentiment").value=r.sentiment||"";
+  $("edPrimary").innerHTML='<option value="">— select —</option>'+PRIMARY_THEMES.map(t=>'<option'+(r.primary===t?" selected":"")+'>'+esc(t)+'</option>').join("");
+  $("edSecondary").innerHTML=buildSecondaryPicker(r.primary,r.secondary,{});
+  wirePicker();
+  renderEvidence(r);
+  $("edSummary").value=r.summary;$("edNotes").value=r.notes;
+  flash($("msgEd"),"");
+  $("editorPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderEvidence(r){
+  const host=$("edEvidence");
+  if(!r.auto||!r.evidence.length){
+    host.innerHTML='<div class="t-sub">No suggestion on this record \u2014 classify it by hand below.</div>';
+    return;
+  }
+  const cls=r.level==="low"?"b-alert":r.level==="medium"?"b-mix":"b-emerging";
+  host.innerHTML='<div class="insight-block" style="margin-bottom:0">'
+    +'<h4>Why this was suggested <span class="badge '+cls+'" style="margin-left:6px"><span class="g">\u25C6</span>'+esc(r.level)+' confidence \u00B7 '+r.conf.toFixed(2)+'</span></h4>'
+    +'<ul>'+r.evidence.map(e=>'<li><span>'+esc(e)+'</span></li>').join("")+'</ul>'
+    +'<div class="t-sub" style="margin-top:10px">Cue matching only \u2014 it has not read the review the way you will. Change whatever it got wrong; saving marks the record confirmed.</div></div>';
+}
+function closeEditor(){$("editorPanel").hidden=true;P1.editing=null;}
+function saveEditor(){
+  const r=P1.reviews.find(x=>x.id===P1.editing);if(!r)return;
+  const sent=$("edSentiment").value,prim=$("edPrimary").value;
+  if(!sent||!prim){flash($("msgEd"),"Sentiment and one primary theme are both required.","err");return;}
+  r.sentiment=sent;r.primary=prim;
+  r.employment=$("edEmployment").value;
+  r.jobTitle=$("edJobTitle").value.trim();
+  r.location=$("edLocation").value.trim();
+  const st=pickerState();
+  let picked=st.checked.slice();
+  const fresh=[];
+  ["Positive","Negative"].forEach(pol=>{
+    if(st.others[pol]===undefined)return;
+    /* comma, semicolon or newline all separate themes; split before cleaning so a
+       semicolon is treated as a separator rather than folded into one long name */
+    String(st.others[pol]).split(/[,;\n]+/).forEach(raw=>{
+      const name=cleanThemeName(raw);
+      if(!name)return;
+      /* if it is really a baseline theme typed by hand, use the baseline name */
+      const norm=x=>x.toLowerCase().replace(/[^a-z0-9]/g,"");
+      const known=ALL_SECONDARY.find(x=>norm(x)===norm(name));
+      if(known){picked.push(known);return;}
+      P1.customThemes[name]=pol;
+      picked.push(name);fresh.push(name+" ("+pol.toLowerCase()+")");
+    });
+  });
+  r.secondary=uniq(picked);
+  r.summary=$("edSummary").value.trim();
+  /* pros, cons and key topics are no longer editable here \u2014 the classifier's
+     extraction from the reviewer's own wording is kept as-is and still exports. */
+  let notes=$("edNotes").value.trim();
+  fresh.forEach(f=>{
+    const nm=f.replace(/\s*\((positive|negative)\)$/,"");
+    if(notes.toLowerCase().indexOf(nm.toLowerCase())===-1)
+      notes=(notes?notes+" | ":"")+"Emerging theme ("+P1.customThemes[nm].toLowerCase()+"): "+nm;
+  });
+  r.notes=notes.replace(/(^|\s*\|\s*)No baseline secondary theme matched[^|]*/i,"").replace(/^\s*\|\s*/,"").trim();
+  r.status="Confirmed";
+  p1Dupes();p1Render();closeEditor();
+  flash($("msgWs"),r.id+" edited and confirmed.","ok");
+}
+
+/* ---- export (Sections 18/19) ---- */
+function exportRows(){
+  return P1.reviews.map(r=>{
+    /* provenance travels in Analyst Notes \u2014 the schema is fixed, and the dashboard
+       needs to be able to tell a confirmed record from an unreviewed suggestion. */
+    const prov=r.status==="Suggested"?"Rule-based classification, unconfirmed ("+(r.level||"?")+" confidence)":"";
+    return [val(r.source),val(r.date),val(r.title),val(r.sentiment),val(r.primary),
+      joinList(r.secondary),val(r.pros),val(r.cons),val(r.topics),val(r.summary),
+      val([r.notes,r.dupNote,prov].filter(x=>!blank(x)).join(" | ")),r.dupFlag?"Potential Duplicate":NA,
+      val(r.location),val(r.employment),val(r.jobTitle)];
+  });
+}
+function exportCsv(){return csvWrite(SCHEMA,exportRows());}
+/* =========================================================
+   CHARTS — hand-built SVG, no libraries.
+   Every chart labels its values so colour is never the only signal.
+   ========================================================= */
+function svgOpen(w,h,label){return '<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'" preserveAspectRatio="xMidYMid meet">';}
+function legendHTML(items){
+  return '<div class="legend">'+items.map(i=>'<span class="k"><i style="background:'+i.color+'"></i>'+esc(i.label)+(i.note?' <span style="color:var(--muted)">'+esc(i.note)+'</span>':'')+'</span>').join("")+'</div>';
+}
+function emptyChart(msg){return '<div class="empty" style="padding:28px 18px">'+esc(msg)+'</div>';}
+
+function donutChart(data,total,label){
+  if(!total)return emptyChart("No records in the current view.");
+  const W=340,H=210,cx=105,cy=105,R=82,r=52;
+  let a=-Math.PI/2,s=svgOpen(W,H,label);
+  data.forEach(d=>{
+    if(!d.value)return;
+    const frac=d.value/total,a2=a+frac*Math.PI*2,big=frac>0.5?1:0;
+    const p=(rad,ang)=>[cx+rad*Math.cos(ang),cy+rad*Math.sin(ang)];
+    const[x1,y1]=p(R,a),[x2,y2]=p(R,a2),[x3,y3]=p(r,a2),[x4,y4]=p(r,a);
+    s+='<path d="M'+x1+','+y1+' A'+R+','+R+' 0 '+big+' 1 '+x2+','+y2+' L'+x3+','+y3+' A'+r+','+r+' 0 '+big+' 0 '+x4+','+y4+' Z" fill="'+d.color+'"><title>'+esc(d.label+": "+d.value+" ("+pctStr(d.value,total)+")")+'</title></path>';
+    if(frac>0.07){const[lx,ly]=p((R+r)/2,a+frac*Math.PI);s+='<text x="'+lx+'" y="'+(ly+4)+'" text-anchor="middle" class="bar-label" style="fill:'+(d.light?"#0B0C0C":"#FFFFFF")+'">'+pct(d.value,total).toFixed(0)+'%</text>';}
+    a=a2;
+  });
+  s+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" class="donut-center" style="font-size:26px">'+total+'</text>';
+  s+='<text x="'+cx+'" y="'+(cy+16)+'" text-anchor="middle" class="axis" style="font-size:10px;fill:#5B6670">reviews</text>';
+  data.forEach((d,i)=>{
+    const y=34+i*34;
+    s+='<rect x="212" y="'+(y-9)+'" width="11" height="11" rx="2" fill="'+d.color+'"/>';
+    s+='<text x="230" y="'+y+'" class="cat-label">'+esc(d.glyph?d.glyph+" ":"")+esc(d.label)+'</text>';
+    s+='<text x="230" y="'+(y+14)+'" class="axis" style="font-size:10.5px">'+d.value+' \u00B7 '+pctStr(d.value,total)+'</text>';
+  });
+  return s+'</svg>';
+}
+
+function hBarChart(rows,opts){
+  opts=opts||{};
+  if(!rows.length)return emptyChart(opts.empty||"No records in the current view.");
+  const W=700,labelW=opts.labelW||210,barX=labelW+10,barW=W-barX-70,rowH=26,pad=8;
+  const H=rows.length*rowH+pad*2+18;
+  const max=Math.max.apply(null,rows.map(r=>r.value))||1;
+  let s=svgOpen(W,H,opts.label||"Bar chart");
+  [0,.25,.5,.75,1].forEach(f=>{
+    const x=barX+barW*f;
+    s+='<line class="grid-line" x1="'+x+'" y1="'+pad+'" x2="'+x+'" y2="'+(H-20)+'"/>';
+    s+='<text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" class="axis">'+Math.round(max*f)+'</text>';
+  });
+  rows.forEach((r,i)=>{
+    const y=pad+i*rowH,w=Math.max(1.5,barW*(r.value/max));
+    s+='<text x="'+(labelW)+'" y="'+(y+17)+'" text-anchor="end" class="cat-label">'+esc(trunc(r.label,34))+'</text>';
+    s+='<rect x="'+barX+'" y="'+(y+5)+'" width="'+w+'" height="'+(rowH-11)+'" rx="2" fill="'+(r.color||"#011043")+'"><title>'+esc(r.label+": "+r.value+(r.note?" ("+r.note+")":""))+'</title></rect>';
+    s+='<text x="'+(barX+w+7)+'" y="'+(y+17)+'" class="bar-label">'+esc(r.value+(r.note?"  "+r.note:""))+'</text>';
+  });
+  return s+'</svg>';
+}
+
+function stackedChart(rows,keys,opts){
+  opts=opts||{};
+  if(!rows.length)return emptyChart(opts.empty||"No records in the current view.");
+  const W=700,labelW=opts.labelW||200,barX=labelW+10,barW=W-barX-58,rowH=27,pad=8;
+  const H=rows.length*rowH+pad*2;
+  let s=svgOpen(W,H,opts.label||"Stacked bar chart");
+  rows.forEach((r,i)=>{
+    const y=pad+i*rowH,total=keys.reduce((a,k)=>a+(r.parts[k.key]||0),0)||1;
+    s+='<text x="'+labelW+'" y="'+(y+18)+'" text-anchor="end" class="cat-label">'+esc(trunc(r.label,30))+'</text>';
+    let x=barX;
+    keys.forEach(k=>{
+      const v=r.parts[k.key]||0;if(!v)return;
+      const w=barW*(v/total);
+      s+='<rect x="'+x+'" y="'+(y+5)+'" width="'+w+'" height="'+(rowH-12)+'" fill="'+k.color+'"><title>'+esc(r.label+" \u2014 "+k.key+": "+v+" of "+total+" ("+pctStr(v,total)+")")+'</title></rect>';
+      if(w>30)s+='<text x="'+(x+w/2)+'" y="'+(y+18)+'" text-anchor="middle" class="bar-label" style="fill:'+(k.light?"#0B0C0C":"#FFFFFF")+';font-size:10px">'+pct(v,total).toFixed(0)+'%</text>';
+      x+=w;
+    });
+    s+='<text x="'+(barX+barW+7)+'" y="'+(y+18)+'" class="bar-label">n='+total+'</text>';
+  });
+  return s+'</svg>';
+}
+
+function colChart(cats,values,opts){
+  opts=opts||{};
+  if(!cats.length)return emptyChart(opts.empty||"No dated records in the current view.");
+  const W=700,H=240,mL=42,mR=14,mT=14,mB=52;
+  const pw=W-mL-mR,ph=H-mT-mB;
+  const max=Math.max.apply(null,values.concat([1]));
+  const step=pw/cats.length,bw=Math.min(46,step*0.62);
+  let s=svgOpen(W,H,opts.label||"Column chart");
+  for(let i=0;i<=4;i++){
+    const y=mT+ph-ph*i/4;
+    s+='<line class="grid-line" x1="'+mL+'" y1="'+y+'" x2="'+(W-mR)+'" y2="'+y+'"/>';
+    s+='<text x="'+(mL-8)+'" y="'+(y+4)+'" text-anchor="end" class="axis">'+Math.round(max*i/4)+'</text>';
+  }
+  cats.forEach((c,i)=>{
+    const x=mL+step*i+(step-bw)/2,h=ph*(values[i]/max),y=mT+ph-h;
+    s+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(h,1)+'" rx="2" fill="#011043"><title>'+esc(c+": "+values[i])+'</title></rect>';
+    if(values[i])s+='<text x="'+(x+bw/2)+'" y="'+(y-5)+'" text-anchor="middle" class="bar-label">'+values[i]+'</text>';
+    const skip=cats.length>14?Math.ceil(cats.length/12):1;
+    if(i%skip===0)s+='<text x="'+(mL+step*i+step/2)+'" y="'+(H-mB+18)+'" text-anchor="end" class="axis" transform="rotate(-40 '+(mL+step*i+step/2)+' '+(H-mB+18)+')">'+esc(c)+'</text>';
+  });
+  return s+'</svg>';
+}
+
+function lineChart(cats,series,opts){
+  opts=opts||{};
+  if(!cats.length||!series.length)return emptyChart(opts.empty||"Select at least one theme, and upload data covering more than one period.");
+  const W=700,H=280,mL=42,mR=16,mT=14,mB=52;
+  const pw=W-mL-mR,ph=H-mT-mB;
+  let max=1;series.forEach(s=>s.values.forEach(v=>{if(v>max)max=v;}));
+  const X=i=>cats.length===1?mL+pw/2:mL+pw*i/(cats.length-1);
+  const Y=v=>mT+ph-ph*(v/max);
+  let s=svgOpen(W,H,opts.label||"Line chart");
+  for(let i=0;i<=4;i++){
+    const y=mT+ph-ph*i/4;
+    s+='<line class="grid-line" x1="'+mL+'" y1="'+y+'" x2="'+(W-mR)+'" y2="'+y+'"/>';
+    s+='<text x="'+(mL-8)+'" y="'+(y+4)+'" text-anchor="end" class="axis">'+Math.round(max*i/4)+'</text>';
+  }
+  const skip=cats.length>12?Math.ceil(cats.length/10):1;
+  cats.forEach((c,i)=>{if(i%skip===0)s+='<text x="'+X(i)+'" y="'+(H-mB+18)+'" text-anchor="end" class="axis" transform="rotate(-40 '+X(i)+' '+(H-mB+18)+')">'+esc(c)+'</text>';});
+  series.forEach(ser=>{
+    const pts=ser.values.map((v,i)=>X(i)+","+Y(v));
+    s+='<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+ser.color+'" stroke-width="2.2" stroke-linejoin="round"/>';
+    ser.values.forEach((v,i)=>{
+      s+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3.4" fill="'+ser.color+'"><title>'+esc(ser.label+" \u2014 "+cats[i]+": "+v)+'</title></circle>';
+    });
+  });
+  return s+'</svg>';
+}
+/* =========================================================
+   PAGE 2 — upload, merge, compute
+   ========================================================= */
+const P2={files:[],records:[],seq:1,fileSeq:1,trendPick:null,trendTouched:false,recurView:"pos",customPolarity:{}};
+
+/* Two shapes are valid: the original 12 columns, and those 12 plus the appended
+   reviewer-context columns. Anything else is rejected rather than guessed at. */
+function validateHeader(hdr){
+  const got=hdr.map(h=>String(h).replace(/^\uFEFF/,"").trim());
+  if(got.length!==SCHEMA.length&&got.length!==SCHEMA_BASE.length)
+    return "expected "+SCHEMA_BASE.length+" columns (original schema) or "+SCHEMA.length
+      +" (with Location, Employment Status, Job Title), found "+got.length+" ("+got.join(", ")+")";
+  const expect=got.length===SCHEMA.length?SCHEMA:SCHEMA_BASE;
+  for(let i=0;i<expect.length;i++){
+    if(got[i].toLowerCase()!==expect[i].toLowerCase())
+      return 'column '+(i+1)+' should be "'+expect[i]+'" but reads "'+got[i]+'"';
+  }
+  return null;
+}
+function rowToRecord(cells,fileId){
+  const g=i=>{const v=(cells[i]||"").trim();return v.toUpperCase()==="N/A"?"":v;};
+  const notes=g(10);
+  const emg=[];
+  /* "Emerging theme: X" and "Emerging theme (positive): X" are both valid \u2014 the
+     second form comes from a theme named through Other and carries its polarity. */
+  const re=/Emerging theme(?:\s*\((positive|negative)\))?:\s*([^|\n]+)/gi;let m;
+  while((m=re.exec(notes))){
+    const pol=m[1];
+    m[2].split(",").forEach(x=>{
+      const t=x.trim();if(!t)return;
+      emg.push(t);
+      if(pol)P2.customPolarity[t.toLowerCase()]=pol.charAt(0).toUpperCase()+pol.slice(1);
+    });
+  }
+  return {id:"D"+(P2.seq++),file:fileId,source:g(0),date:g(1),title:g(2),sentiment:g(3),primary:g(4),
+    secondary:splitList(cells[5]),pros:g(6),cons:g(7),topics:g(8),summary:g(9),notes:notes,
+    location:g(12),employment:g(13),jobTitle:g(14),
+    fileFlag:/duplicate/i.test(g(11)),dupFlag:false,dupNote:"",emerging:uniq(emg)};
+}
+function addFile(name,text){
+  const rows=csvParse(text);
+  if(!rows.length)return{err:name+" \u2014 the file is empty."};
+  const bad=validateHeader(rows[0]);
+  if(bad)return{err:name+" \u2014 header does not match the export schema: "+bad+". Fix the file or re-export; columns are not remapped."};
+  const body=rows.slice(1).filter(r=>r.some(c=>String(c).trim()!==""));
+  if(!body.length)return{err:name+" \u2014 header is valid but there are no records."};
+  const fid="F"+(P2.fileSeq++);
+  const recs=body.map(r=>rowToRecord(r,fid));
+  const dates=recs.map(r=>r.date).filter(d=>/^\d{4}-\d{2}/.test(d)).sort();
+  P2.files.push({id:fid,name:name,count:recs.length,from:dates[0]||null,to:dates[dates.length-1]||null});
+  P2.records=P2.records.concat(recs);
+  return{ok:name+" \u2014 "+recs.length+" record"+(recs.length===1?"":"s")+" added."};
+}
+function p2Dupes(){
+  const recs=P2.records.map(r=>({source:r.source,date:r.date,title:r.title,
+    body:[r.pros,r.cons,r.summary,r.topics].filter(x=>!blank(x)).join(" ")}));
+  const{groups,why}=detectDuplicates(recs);
+  P2.records.forEach(r=>{r.dupFlag=r.fileFlag;r.dupNote=r.fileFlag?"Flagged as a potential duplicate in its source file.":"";});
+  const fname=id=>{const f=P2.files.find(f=>f.id===id);return f?f.name:id;};
+  groups.forEach(g=>g.forEach(i=>{
+    const r=P2.records[i];
+    r.dupFlag=true;
+    const others=g.filter(j=>j!==i);
+    const files=uniq(others.map(j=>fname(P2.records[j].file)).concat([fname(r.file)]));
+    const cross=files.length>1;
+    r.dupNote=(cross?"Appears in "+files.length+" files ("+files.join(", ")+")":"Matches "+others.length+" record(s) in "+fname(r.file))
+      +" \u2014 "+((why[i][0]||{}).note||"substantial similarity")+". Kept in the dataset.";
+  }));
+}
+function clearAll(){P2.files=[];P2.records=[];P2.seq=1;P2.fileSeq=1;P2.trendPick=null;P2.trendTouched=false;P2.customPolarity={};}
+
+/* ---- filters ---- */
+function activeFilterList(){
+  const f=[];
+  const add=(k,v,el)=>{if(v)f.push({k:k,v:v,el:el});};
+  add("Source",$("fSource").value,"fSource");
+  add("Sentiment",$("fSentiment").value,"fSentiment");
+  add("Primary theme",$("fPrimary").value,"fPrimary");
+  add("Secondary theme",$("fSecondary").value,"fSecondary");
+  const d=$("fDup").value;if(d)f.push({k:"Duplicates",v:d==="dup"?"potential duplicates only":"excluded",el:"fDup"});
+  const fl=$("fFile").value;if(fl){const x=P2.files.find(x=>x.id===fl);f.push({k:"File",v:x?x.name:fl,el:"fFile"});}
+  add("Employment",$("fEmployment").value,"fEmployment");
+  add("From",$("fFrom").value,"fFrom");
+  add("To",$("fTo").value,"fTo");
+  add("Search",$("fSearch").value.trim(),"fSearch");
+  return f;
+}
+function filtered(){
+  const src=$("fSource").value,sen=$("fSentiment").value,pri=$("fPrimary").value,sec=$("fSecondary").value,
+        dup=$("fDup").value,fil=$("fFile").value,from=$("fFrom").value,to=$("fTo").value,
+        emp=$("fEmployment").value,q=$("fSearch").value.trim().toLowerCase();
+  return P2.records.filter(r=>{
+    if(src&&r.source!==src)return false;
+    if(sen&&r.sentiment!==sen)return false;
+    if(pri&&r.primary!==pri)return false;
+    if(sec&&r.secondary.indexOf(sec)===-1)return false;
+    if(dup==="dup"&&!r.dupFlag)return false;
+    if(dup==="uniq"&&r.dupFlag)return false;
+    if(fil&&r.file!==fil)return false;
+    if(emp&&(r.employment||"Not stated")!==emp)return false;
+    if(from&&(!r.date||r.date<from))return false;
+    if(to&&(!r.date||r.date>to))return false;
+    if(q){
+      const hay=[r.title,r.pros,r.cons,r.topics,r.summary,r.notes,r.jobTitle,r.location,r.employment,r.text||""].join(" \u00B7 ").toLowerCase();
+      if(hay.indexOf(q)===-1)return false;
+    }
+    return true;
+  });
+}
+
+/* ---- trend classification (Section 24) ---- */
+function slope(ys){
+  const n=ys.length;if(n<2)return 0;
+  let sx=0,sy=0,sxy=0,sxx=0;
+  for(let i=0;i<n;i++){sx+=i;sy+=ys[i];sxy+=i*ys[i];sxx+=i*i;}
+  const d=n*sxx-sx*sx;return d?(n*sxy-sx*sy)/d:0;
+}
+function classifyTrend(counts,periodTotals,total){
+  const P=counts.length;
+  const present=counts.filter(c=>c>0).length;
+  const firstIdx=counts.findIndex(c=>c>0);
+  const lastIdx=counts.length-1-counts.slice().reverse().findIndex(c=>c>0);
+  const shares=counts.map((c,i)=>periodTotals[i]?c/periodTotals[i]:0);
+  const sl=slope(shares);
+  const presence=P?present/P:0;
+  const ev="present in "+present+" of "+P+" period"+(P===1?"":"s")+", "+total+" review"+(total===1?"":"s");
+  if(total<=1)return{status:"One-off topic",why:ev+" \u2014 a single review does not establish a recurring theme."};
+  if(P<2)return{status:"Insufficient data",why:"only one period of dated reviews in view \u2014 no direction can be read."};
+  if(present<2)return{status:"Insufficient data",why:ev+" \u2014 confined to one period."};
+  if(total<3)return{status:"Observed pattern",why:ev+" \u2014 too few reviews to read a direction from."};
+  if(firstIdx>=Math.ceil(P/2)&&total>=2)
+    return{status:"Emerging",why:ev+", first appears at "+(firstIdx+1)+" of "+P+" periods and absent before that."};
+  if(sl>0.02&&lastIdx>=P-2)return{status:"Increasing",why:ev+", share of reviews rising ~"+(sl*100).toFixed(1)+" points per period."};
+  if(sl<-0.02)return{status:"Decreasing",why:ev+", share of reviews falling ~"+(Math.abs(sl)*100).toFixed(1)+" points per period."};
+  if(presence>=0.7)return{status:"Persistent",why:ev+", share broadly flat (~"+(sl*100).toFixed(1)+" points per period)."};
+  return{status:"Observed pattern",why:ev+", too intermittent to call a direction."};
+}
+function trendBadge(st){
+  const m={"Persistent":"b-nav","Increasing":"b-neg","Decreasing":"b-pos","Emerging":"b-emerging","One-off topic":"b-flat","Insufficient data":"b-flat","Observed pattern":"b-flat"};
+  const g={"Persistent":"\u2261","Increasing":"\u25B2","Decreasing":"\u25BC","Emerging":"\u25C6","One-off topic":"\u00B7","Insufficient data":"?","Observed pattern":"\u2248"};
+  return '<span class="badge '+(m[st]||"b-flat")+'"><span class="g">'+g[st]+'</span>'+esc(st)+'</span>';
+}
+
+/* ---- statistics ---- */
+function computeStats(recs){
+  const S={total:recs.length,recs:recs};
+  S.bySource={Glassdoor:0,Indeed:0,Other:0};
+  recs.forEach(r=>{S.bySource[r.source==="Glassdoor"?"Glassdoor":r.source==="Indeed"?"Indeed":"Other"]++;});
+  S.bySent={};SENTIMENTS.concat(["Unclassified"]).forEach(s=>S.bySent[s]=0);
+  recs.forEach(r=>{S.bySent[SENTIMENTS.indexOf(r.sentiment)>-1?r.sentiment:"Unclassified"]++;});
+  S.dupes=recs.filter(r=>r.dupFlag).length;
+  S.byEmployment={};
+  recs.forEach(r=>{const k=r.employment||"Not stated";S.byEmployment[k]=(S.byEmployment[k]||0)+1;});
+  S.hasEmployment=Object.keys(S.byEmployment).some(k=>k!=="Not stated");
+
+  S.primary={};S.sentByPrimary={};
+  recs.forEach(r=>{
+    const p=r.primary||"Unclassified";
+    S.primary[p]=(S.primary[p]||0)+1;
+    S.sentByPrimary[p]=S.sentByPrimary[p]||{};
+    const s=SENTIMENTS.indexOf(r.sentiment)>-1?r.sentiment:"Unclassified";
+    S.sentByPrimary[p][s]=(S.sentByPrimary[p][s]||0)+1;
+  });
+
+  S.secondary={};S.sentBySecondary={};S.srcBySecondary={};
+  recs.forEach(r=>{
+    const s=SENTIMENTS.indexOf(r.sentiment)>-1?r.sentiment:"Unclassified";
+    uniq(r.secondary).forEach(t=>{
+      S.secondary[t]=(S.secondary[t]||0)+1;
+      S.sentBySecondary[t]=S.sentBySecondary[t]||{};
+      S.sentBySecondary[t][s]=(S.sentBySecondary[t][s]||0)+1;
+      S.srcBySecondary[t]=S.srcBySecondary[t]||{Glassdoor:0,Indeed:0,Other:0};
+      S.srcBySecondary[t][r.source==="Glassdoor"?"Glassdoor":r.source==="Indeed"?"Indeed":"Other"]++;
+    });
+  });
+
+  S.periods=uniq(recs.map(r=>monthKey(r.date)).filter(Boolean)).sort();
+  S.periodTotals=S.periods.map(p=>recs.filter(r=>monthKey(r.date)===p).length);
+  S.undated=recs.filter(r=>!monthKey(r.date)).length;
+  S.themeByPeriod={};
+  Object.keys(S.secondary).forEach(t=>{
+    S.themeByPeriod[t]=S.periods.map(p=>recs.filter(r=>monthKey(r.date)===p&&r.secondary.indexOf(t)>-1).length);
+  });
+  S.primaryByPeriod={};
+  Object.keys(S.primary).forEach(t=>{
+    S.primaryByPeriod[t]=S.periods.map(p=>recs.filter(r=>monthKey(r.date)===p&&(r.primary||"Unclassified")===t).length);
+  });
+
+  S.themeRows=Object.keys(S.secondary).map(t=>{
+    const dated=recs.filter(r=>r.secondary.indexOf(t)>-1&&monthKey(r.date)).map(r=>r.date).sort();
+    const sd=S.sentBySecondary[t]||{};
+    const pos=sd.Positive||0,neg=sd.Negative||0,mix=sd.Mixed||0,neu=sd.Neutral||0;
+    const tot=S.secondary[t];
+    let assoc="No dominant sentiment",aPct=0;
+    const rank=[["Positive",pos],["Negative",neg],["Mixed",mix],["Neutral",neu]].sort((a,b)=>b[1]-a[1]);
+    if(rank[0][1]>0&&rank[0][1]>rank[1][1]){assoc=rank[0][0];aPct=pct(rank[0][1],tot);}
+    const tr=classifyTrend(S.themeByPeriod[t]||[],S.periodTotals,tot);
+    return {theme:t,polarity:polarityOf(t),count:tot,share:pct(tot,S.total),
+      gd:(S.srcBySecondary[t]||{}).Glassdoor||0,ind:(S.srcBySecondary[t]||{}).Indeed||0,
+      first:dated[0]||null,last:dated[dated.length-1]||null,
+      assoc:assoc,assocPct:aPct,sent:sd,trend:tr.status,why:tr.why,
+      hist:HISTORICAL[t]||null};
+  }).sort((a,b)=>b.count-a.count);
+
+  S.primaryRows=Object.keys(S.primary).map(p=>{
+    const sd=S.sentByPrimary[p]||{};
+    const tr=classifyTrend(S.primaryByPeriod[p]||[],S.periodTotals,S.primary[p]);
+    return {theme:p,count:S.primary[p],share:pct(S.primary[p],S.total),sent:sd,
+      pos:sd.Positive||0,neg:sd.Negative||0,mix:sd.Mixed||0,neu:sd.Neutral||0,trend:tr.status,why:tr.why};
+  }).sort((a,b)=>b.count-a.count);
+
+  /* emerging: annotated in Analyst Notes, or a tracking-list topic seen in Key Topics */
+  const emg={};
+  const noteHit=(t,r)=>{
+    const k=t.replace(/^"|"$/g,"");
+    emg[k]=emg[k]||{theme:k,count:0,recs:[],sources:{},sent:{},primary:{},dates:[],via:{}};
+    const e=emg[k];e.count++;e.recs.push(r);
+    e.sources[r.source||"Unknown"]=(e.sources[r.source||"Unknown"]||0)+1;
+    const s=SENTIMENTS.indexOf(r.sentiment)>-1?r.sentiment:"Unclassified";
+    e.sent[s]=(e.sent[s]||0)+1;
+    if(r.primary)e.primary[r.primary]=(e.primary[r.primary]||0)+1;
+    if(r.date)e.dates.push(r.date);
+  };
+  recs.forEach(r=>{
+    r.emerging.forEach(t=>{noteHit(t,r);emg[t.replace(/^"|"$/g,"")].via["analyst note"]=1;});
+    const hay=(r.topics+" "+r.summary).toLowerCase();
+    TRACKING_THEMES.forEach(t=>{
+      const k=t.replace(/^"|"$/g,"");
+      /* Single generic words ("Support", "Tech") match far too much inside key topics
+         to be scanned for. They only count when an analyst names them explicitly. */
+      if(k.indexOf(" ")===-1&&k.length<12)return;
+      if(r.emerging.some(x=>x.toLowerCase()===k.toLowerCase()))return;
+      if(!hay)return;
+      const re=new RegExp("\\b"+k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i");
+      if(re.test(hay)){noteHit(k,r);emg[k].via["key topics"]=1;}
+    });
+  });
+  S.emergingRows=Object.values(emg).map(e=>{
+    e.dates.sort();
+    const rank=Object.keys(e.sent).map(k=>[k,e.sent[k]]).sort((a,b)=>b[1]-a[1]);
+    const prank=Object.keys(e.primary).map(k=>[k,e.primary[k]]).sort((a,b)=>b[1]-a[1]);
+    const srcs=Object.keys(e.sources).filter(s=>e.sources[s]>0);
+    return {theme:e.theme,count:e.count,first:e.dates[0]||null,last:e.dates[e.dates.length-1]||null,
+      sources:srcs,sent:rank.length?rank[0][0]:"Unclassified",primary:prank.length?prank[0][0]:"\u2014",
+      share:pct(e.count,S.total),via:Object.keys(e.via).join(" + ")||"analyst note",
+      onTracking:TRACKING_THEMES.some(t=>t.replace(/^"|"$/g,"").toLowerCase()===e.theme.toLowerCase()),
+      crossSource:srcs.length>1};
+  }).sort((a,b)=>b.count-a.count);
+
+  S.small=S.total<30||S.periods.length<3;
+  return S;
+}
+/* =========================================================
+   PAGE 2 — rendering
+   ========================================================= */
+function tableHTML(headers,rows,opts){
+  opts=opts||{};
+  if(!rows.length)return '<div class="empty">'+esc(opts.empty||"No records match the current filters.")+'</div>';
+  let h='<div class="table-wrap"'+(opts.maxH?' style="max-height:'+opts.maxH+'"':'')+'><table>';
+  if(opts.caption)h+='<caption>'+esc(opts.caption)+'</caption>';
+  h+='<thead><tr>'+headers.map(x=>'<th'+(/(^#|%|count|reviews|^gd$|^ind$|positive|negative|mixed|neutral)/i.test(x)?' class="num"':'')+'>'+esc(x)+'</th>').join("")+'</tr></thead><tbody>';
+  h+=rows.map(r=>'<tr>'+r.join("")+'</tr>').join("");
+  return h+'</tbody></table></div>';
+}
+function td(v,cls){return '<td'+(cls?' class="'+cls+'"':'')+'>'+(v==null?"\u2014":v)+'</td>';}
+
+function fillFilterOptions(){
+  const S=computeStats(P2.records);
+  const keep=(sel,items,allLabel)=>{
+    const cur=sel.value;
+    sel.innerHTML='<option value="">'+allLabel+'</option>'+items.map(i=>'<option'+(i===cur?" selected":"")+'>'+esc(i)+'</option>').join("");
+    if(items.indexOf(cur)===-1)sel.value="";
+  };
+  keep($("fPrimary"),Object.keys(S.primary).sort(),"All primary themes");
+  keep($("fEmployment"),Object.keys(S.byEmployment).sort(),"All employment statuses");
+  keep($("fSecondary"),Object.keys(S.secondary).sort(),"All secondary themes");
+  const curF=$("fFile").value;
+  $("fFile").innerHTML='<option value="">All files</option>'+P2.files.map(f=>'<option value="'+f.id+'"'+(f.id===curF?" selected":"")+'>'+esc(f.name)+'</option>').join("");
+  if(!P2.files.some(f=>f.id===curF))$("fFile").value="";
+}
+function renderFiles(){
+  const host=$("fileList");
+  if(!P2.files.length){host.innerHTML='<div class="empty" style="padding:20px">No files loaded.</div>';$("btnClearAll").disabled=true;return;}
+  $("btnClearAll").disabled=false;
+  host.innerHTML=P2.files.map(f=>{
+    const range=f.from?(f.from===f.to?f.from:f.from+" \u2192 "+f.to):"no dated reviews";
+    return '<div class="file-row"><span class="fname">'+esc(f.name)+'</span>'
+      +'<span class="meta">'+f.count+' record'+(f.count===1?"":"s")+'</span>'
+      +'<span class="meta">'+esc(range)+'</span>'
+      +'<button class="btn quiet small" data-rmfile="'+f.id+'">Remove</button></div>';
+  }).join("");
+  host.querySelectorAll("[data-rmfile]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.rmfile;
+    P2.files=P2.files.filter(f=>f.id!==id);
+    P2.records=P2.records.filter(r=>r.file!==id);
+    p2Dupes();fillFilterOptions();renderFiles();renderP2();
+    flash($("uploadMsg"),"File removed and all output recalculated.","ok");
+  });
+}
+
+function renderKpis(S){
+  const mostPrim=S.primaryRows[0];
+  const posRows=S.themeRows.filter(r=>r.polarity==="Positive");
+  const negRows=S.themeRows.filter(r=>r.polarity==="Negative");
+  const cards=[
+    {l:"Total reviews",v:S.total,s:S.dupes?S.dupes+" flagged as potential duplicates":"no duplicates flagged"},
+    {l:"Glassdoor",v:S.bySource.Glassdoor,s:pctStr(S.bySource.Glassdoor,S.total)+" of reviews"},
+    {l:"Indeed",v:S.bySource.Indeed,s:pctStr(S.bySource.Indeed,S.total)+" of reviews"},
+    {l:"Positive",v:pctStr(S.bySent.Positive,S.total),s:S.bySent.Positive+" reviews"},
+    {l:"Negative",v:pctStr(S.bySent.Negative,S.total),s:S.bySent.Negative+" reviews",accent:true},
+    {l:"Mixed",v:pctStr(S.bySent.Mixed,S.total),s:S.bySent.Mixed+" reviews"},
+    {l:"Neutral",v:pctStr(S.bySent.Neutral,S.total),s:S.bySent.Neutral+" reviews"},
+    {l:"Most common primary theme",v:mostPrim?mostPrim.theme:"\u2014",sm:true,s:mostPrim?mostPrim.count+" reviews \u00B7 "+mostPrim.share.toFixed(1)+"%":""},
+    {l:"Top positive secondary theme",v:posRows[0]?posRows[0].theme:"\u2014",sm:true,s:posRows[0]?posRows[0].count+" reviews \u00B7 "+posRows[0].share.toFixed(1)+"%":"none present"},
+    {l:"Top negative secondary theme",v:negRows[0]?negRows[0].theme:"\u2014",sm:true,s:negRows[0]?negRows[0].count+" reviews \u00B7 "+negRows[0].share.toFixed(1)+"%":"none present"}
+  ];
+  $("kpiGrid").innerHTML=cards.map(c=>'<div class="kpi-card'+(c.accent?" accent":"")+'"><div class="label">'+esc(c.l)+'</div><div class="value'+(c.sm?" sm":"")+'">'+esc(c.v)+'</div>'+(c.s?'<div class="sub">'+esc(c.s)+'</div>':'')+'</div>').join("");
+}
+
+function renderCharts(S){
+  /* sentiment donut */
+  const dd=SENTIMENTS.concat(S.bySent.Unclassified?["Unclassified"]:[]).map(s=>({
+    label:s,value:S.bySent[s]||0,
+    color:(SENT_STYLE[s]||{}).hex||"#D9DEE1",
+    light:s==="Unclassified",glyph:(SENT_STYLE[s]||{}).g||""}));
+  $("chSent").innerHTML=donutChart(dd,S.total,"Sentiment distribution");
+  $("capSent").textContent=S.total?"Based on "+S.total+" filtered reviews."+(S.bySent.Unclassified?" "+S.bySent.Unclassified+" carry no sentiment value.":""):"";
+
+  /* volume over time */
+  $("chVol").innerHTML=colChart(S.periods.map(monthLabel),S.periodTotals,{label:"Review volume by month"});
+  $("capVol").textContent=S.periods.length?S.periods.length+" period"+(S.periods.length===1?"":"s")+" from "+monthLabel(S.periods[0])+" to "+monthLabel(S.periods[S.periods.length-1])+(S.undated?" \u00B7 "+S.undated+" undated review(s) excluded from this chart.":""):"No dated reviews in view.";
+
+  /* primary frequency */
+  $("chPrim").innerHTML=hBarChart(S.primaryRows.map(r=>({label:r.theme,value:r.count,note:r.share.toFixed(1)+"%"})),{label:"Primary theme frequency",labelW:200});
+
+  /* secondary frequency */
+  $("chSec").innerHTML=hBarChart(S.themeRows.slice(0,14).map(r=>({label:r.theme,value:r.count,note:r.share.toFixed(1)+"%",
+    color:r.polarity==="Positive"?"#5E8C6A":r.polarity==="Negative"?"#011043":"#408DF1"})),{label:"Secondary theme frequency",labelW:224,empty:"No secondary themes assigned in the current view."})
+    +legendHTML([{label:"Negative theme",color:"#011043"},{label:"Positive theme",color:"#5E8C6A"},{label:"Off-baseline",color:"#408DF1"}]);
+
+  /* sentiment by theme */
+  const keys=SENTIMENTS.map(s=>({key:s,color:SENT_STYLE[s].hex,light:false})).concat([{key:"Unclassified",color:"#D9DEE1",light:true}]);
+  $("chSentPrim").innerHTML=stackedChart(S.primaryRows.map(r=>({label:r.theme,parts:r.sent})),keys,{label:"Sentiment by primary theme",labelW:190})
+    +legendHTML(SENTIMENTS.map(s=>({label:SENT_STYLE[s].g+" "+s,color:SENT_STYLE[s].hex})));
+  $("chSentSec").innerHTML=stackedChart(S.themeRows.slice(0,12).map(r=>({label:r.theme,parts:r.sent})),keys,{label:"Sentiment by secondary theme",labelW:200,empty:"No secondary themes assigned in the current view."});
+
+  /* theme trends */
+  const avail=S.themeRows.map(r=>r.theme);
+  if(P2.trendPick===null)P2.trendPick=avail.slice(0,5);
+  P2.trendPick=P2.trendPick.filter(t=>avail.indexOf(t)>-1);
+  /* Re-seed after a filter change wipes the selection, unless the analyst chose to clear it. */
+  if(!P2.trendPick.length&&avail.length&&!P2.trendTouched)P2.trendPick=avail.slice(0,5);
+  $("trendPicker").innerHTML=avail.length?'<span class="lbl" style="margin-right:4px">Themes</span>'+avail.slice(0,16).map(t=>
+    '<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-trend="'+esc(t)+'"'+(P2.trendPick.indexOf(t)>-1?" checked":"")+'>'+esc(trunc(t,26))+'</label>').join(""):"";
+  $("trendPicker").querySelectorAll("[data-trend]").forEach(cb=>cb.onchange=()=>{
+    const t=cb.dataset.trend;
+    P2.trendTouched=true;
+    if(cb.checked){if(P2.trendPick.indexOf(t)===-1)P2.trendPick.push(t);}
+    else P2.trendPick=P2.trendPick.filter(x=>x!==t);
+    renderP2();
+  });
+  const series=P2.trendPick.map((t,i)=>({label:t,color:SERIES[i%SERIES.length],values:S.themeByPeriod[t]||S.periods.map(()=>0)}));
+  $("chTrend").innerHTML=lineChart(S.periods.map(monthLabel),series,{label:"Secondary theme counts by period"})
+    +(series.length?legendHTML(series.map(s=>({label:s.label,color:s.color}))):"");
+}
+
+function renderTrendTables(S){
+  $("trendScope").textContent=S.periods.length?S.periods.length+" period"+(S.periods.length===1?"":"s")+" in view"+(S.small?" \u00B7 small dataset: read directions as observed patterns, not established trends":""):"No dated reviews in view";
+
+  /* sentiment */
+  const srcRow=s=>{
+    const gd=S.recs.filter(r=>r.source==="Glassdoor"&&r.sentiment===s).length;
+    const ind=S.recs.filter(r=>r.source==="Indeed"&&r.sentiment===s).length;
+    return [gd,ind];
+  };
+  $("tblSentiment").innerHTML=tableHTML(["Sentiment","Reviews","% of reviews","Glassdoor","Indeed"],
+    SENTIMENTS.concat(S.bySent.Unclassified?["Unclassified"]:[]).map(s=>{
+      const[gd,ind]=srcRow(s);
+      return [td(s==="Unclassified"?'<span class="badge b-flat">Unclassified</span>':sentBadge(s)),
+        td(S.bySent[s],"num"),td(pctStr(S.bySent[s],S.total),"num"),td(gd,"num"),td(ind,"num")];
+    }),{caption:"Totals are for the filtered dataset. Sentiment is classified from the whole review, independently of theme."});
+
+  /* primary */
+  $("tblPrimary").innerHTML=tableHTML(["Primary theme","Reviews","% of reviews","Positive","Negative","Mixed","Neutral","Trend","Evidence"],
+    S.primaryRows.map(r=>[td('<span class="t-title">'+esc(r.theme)+'</span>'),td(r.count,"num"),td(r.share.toFixed(1)+"%","num"),
+      td(r.pos,"num"),td(r.neg,"num"),td(r.mix,"num"),td(r.neu,"num"),td(trendBadge(r.trend),"nowrap"),td('<span class="t-sub">'+esc(r.why)+'</span>',"wrap")]),
+    {caption:"Positive and negative drivers read off the sentiment split: a theme with a high negative count is a negative driver in this dataset."});
+
+  /* secondary */
+  $("tblSecondary").innerHTML=tableHTML(["Secondary theme","Polarity","Reviews","% of reviews","Sentiment association","Glassdoor","Indeed","First seen","Latest seen","Trend","Evidence"],
+    S.themeRows.map(r=>[
+      td('<span class="t-title">'+esc(r.theme)+'</span>'+(r.hist?'<div class="t-sub">deck baseline first seen: '+esc(r.hist.first)+'</div>':'<div class="t-sub">not on the baseline list</div>')),
+      td(r.polarity==="Positive"?'<span class="badge b-pos"><span class="g">+</span>Positive</span>':r.polarity==="Negative"?'<span class="badge b-neg"><span class="g">\u2212</span>Negative</span>':'<span class="badge b-emerging"><span class="g">\u25C6</span>Off-baseline</span>',"nowrap"),
+      td(r.count,"num"),td(r.share.toFixed(1)+"%","num"),
+      td(r.assoc==="No dominant sentiment"?'<span class="t-sub">no dominant sentiment</span>':sentBadge(r.assoc)+' <span class="t-sub">'+r.assocPct.toFixed(0)+'% of its reviews</span>',"wrap"),
+      td(r.gd,"num"),td(r.ind,"num"),td(r.first||"\u2014","nowrap"),td(r.last||"\u2014","nowrap"),
+      td(trendBadge(r.trend),"nowrap"),td('<span class="t-sub">'+esc(r.why)+'</span>',"wrap")]),
+    {empty:"No secondary themes assigned in the current view.",
+     caption:"First seen and latest seen are measured from the uploaded data, not from the historical decks. The deck baseline is shown for reference only."});
+}
+
+function renderSourceComparison(S){
+  const g=S.recs.filter(r=>r.source==="Glassdoor"),i=S.recs.filter(r=>r.source==="Indeed");
+  const sentOf=(arr,s)=>arr.filter(r=>r.sentiment===s).length;
+  const negG=pct(sentOf(g,"Negative"),g.length),negI=pct(sentOf(i,"Negative"),i.length);
+  $("srcKpis").innerHTML=[
+    {l:"Glassdoor reviews",v:g.length,s:g.length?pctStr(sentOf(g,"Positive"),g.length)+" positive \u00B7 "+negG.toFixed(1)+"% negative":"none in view"},
+    {l:"Indeed reviews",v:i.length,s:i.length?pctStr(sentOf(i,"Positive"),i.length)+" positive \u00B7 "+negI.toFixed(1)+"% negative":"none in view"},
+    {l:"Negative-rate gap",v:(g.length&&i.length)?(Math.abs(negG-negI)).toFixed(1)+" pts":"\u2014",
+      s:(g.length&&i.length)?(negG>negI?"Glassdoor more negative":negI>negG?"Indeed more negative":"identical"):"needs both sources"}
+  ].map(c=>'<div class="kpi-card"><div class="label">'+esc(c.l)+'</div><div class="value">'+esc(c.v)+'</div><div class="sub">'+esc(c.s)+'</div></div>').join("");
+
+  const distRow=(name,arr,total,gArr,iArr)=>[td('<span class="t-title">'+esc(name)+'</span>'),
+    td(gArr,"num"),td(pctStr(gArr,g.length),"num"),td(iArr,"num"),td(pctStr(iArr,i.length),"num")];
+  $("tblSrcPrimary").innerHTML=tableHTML(["Primary theme","GD","GD %","IND","IND %"],
+    S.primaryRows.map(r=>distRow(r.theme,null,null,
+      g.filter(x=>(x.primary||"Unclassified")===r.theme).length,
+      i.filter(x=>(x.primary||"Unclassified")===r.theme).length)),{maxH:"340px"});
+  $("tblSrcSecondary").innerHTML=tableHTML(["Secondary theme","GD","GD %","IND","IND %"],
+    S.themeRows.map(r=>distRow(r.theme,null,null,r.gd,r.ind)),
+    {maxH:"340px",empty:"No secondary themes assigned in the current view."});
+
+  const both=S.themeRows.filter(r=>r.gd>0&&r.ind>0);
+  const gOnly=S.themeRows.filter(r=>r.gd>0&&r.ind===0);
+  const iOnly=S.themeRows.filter(r=>r.ind>0&&r.gd===0);
+  const block=(title,rows,note)=>'<div class="insight-block"><h4>'+esc(title)+' <span style="font-family:var(--font-body);font-size:.8rem;color:var(--muted)">'+rows.length+'</span></h4>'
+    +(rows.length?'<div>'+rows.map(r=>themeTag(r.theme)+'<span class="t-sub" style="margin-right:12px"> '+r.gd+'/'+r.ind+'</span>').join("")+'</div>':'<div class="t-sub">None in the current view.</div>')
+    +'<div class="t-sub" style="margin-top:8px">'+esc(note)+'</div></div>';
+  $("srcOverlap").innerHTML='<div class="grid-3">'
+    +block("Present on both sources",both,"Counts shown as Glassdoor/Indeed. Cross-source recurrence is the stronger signal.")
+    +block("Glassdoor only",gOnly,"Either a genuinely platform-specific signal or an artefact of Glassdoor's larger volume.")
+    +block("Indeed only",iOnly,"Indeed volume is typically lower, so treat single-source themes cautiously.")
+    +'</div>';
+}
+
+function renderRecurring(S){
+  const host=$("recurHost");
+  const v=P2.recurView;
+  if(v==="emg"){
+    host.innerHTML=tableHTML(["Theme","First detected","Latest","Reviews","% of reviews","Source(s)","Dominant sentiment","Related primary theme","Evidence / reason for flagging"],
+      S.emergingRows.map(r=>[
+        td('<span class="badge b-emerging"><span class="g">\u25C6</span>'+esc(r.theme)+'</span>'),
+        td(r.first||"undated","nowrap"),td(r.last||"undated","nowrap"),td(r.count,"num"),td(r.share.toFixed(1)+"%","num"),
+        td(r.sources.length?esc(r.sources.join(", ")):"\u2014","nowrap"),
+        td(r.sent==="Unclassified"?'<span class="badge b-flat">Unclassified</span>':sentBadge(r.sent),"nowrap"),
+        td(esc(r.primary),"wrap"),
+        td('<span class="t-sub">'+esc("Detected via "+r.via+". "+(r.onTracking?"On the tracking list. ":"Not on the tracking list \u2014 new topic. ")
+          +(r.count<2?"Single review \u2014 one-off until it recurs.":r.crossSource?"Appears on both sources \u2014 candidate for promotion to the baseline.":"Single source \u2014 keep monitoring for cross-source recurrence."))+'</span>',"wrap")]),
+      {empty:"No emerging themes detected. These surface from Analyst Notes annotations (\u201CEmerging theme: \u2026\u201D) and tracking-list topics found in Key Topics.",
+       caption:"Emerging themes are tracked, not part of the official baseline. A single review is not enough to establish a recurring theme."});
+    return;
+  }
+  const rows=S.themeRows.filter(r=>r.polarity===(v==="pos"?"Positive":"Negative"));
+  host.innerHTML=tableHTML(["Secondary theme","Source","First seen","Review count","% of reviews","Sentiment association","Trend status","Evidence"],
+    rows.map(r=>[
+      td('<span class="t-title">'+esc(r.theme)+'</span>'+(r.hist?'<div class="t-sub">baseline: Indeed \u2014 '+esc(r.hist.i)+' \u00B7 Glassdoor \u2014 '+esc(r.hist.g)+'</div>':'')),
+      td(r.gd&&r.ind?"Both ("+r.gd+"/"+r.ind+")":r.gd?"Glassdoor ("+r.gd+")":r.ind?"Indeed ("+r.ind+")":"\u2014","nowrap"),
+      td(r.first||"undated","nowrap"),td(r.count,"num"),td(r.share.toFixed(1)+"%","num"),
+      td(r.assoc==="No dominant sentiment"?'<span class="t-sub">no dominant sentiment</span>':sentBadge(r.assoc)+' <span class="t-sub">'+r.assocPct.toFixed(0)+'%</span>',"wrap"),
+      td(trendBadge(r.trend),"nowrap"),td('<span class="t-sub">'+esc(r.why)+'</span>',"wrap")]),
+    {empty:"No "+(v==="pos"?"positive":"negative")+" secondary themes in the current view.",
+     caption:"Sentiment association is measured, not assumed \u2014 a positive theme can sit on a negative review."});
+}
+
+function renderRecords(S){
+  $("recordCount").textContent=S.total+" record"+(S.total===1?"":"s")+" after filters, from "+P2.files.length+" file"+(P2.files.length===1?"":"s");
+  const fname=id=>{const f=P2.files.find(f=>f.id===id);return f?f.name:id;};
+  const revCell=r=>{
+    const emp=r.employment?'<span class="badge '+(r.employment==="Past Employee"?"b-flat":"b-nav")+'">'+esc(r.employment)+'</span>':'<span class="badge b-flat">Not stated</span>';
+    const bits=[];
+    if(!blank(r.jobTitle))bits.push(esc(r.jobTitle));
+    if(!blank(r.location))bits.push(esc(r.location));
+    return emp+(bits.length?'<div class="t-sub">'+bits.join(" \u00B7 ")+'</div>':'');
+  };
+  $("recTableHost").innerHTML=tableHTML(["Source","Date","Reviewer","Title","Sentiment","Primary theme","Secondary themes","Pros summary","Cons summary","Key topics","Review summary","Analyst notes","Duplicate flag","File"],
+    S.recs.map(r=>[
+      td(esc(val(r.source)),"nowrap"),td(esc(val(r.date)),"nowrap"),td(revCell(r),"nowrap"),
+      td('<span class="t-title">'+esc(trunc(val(r.title),64))+'</span>',"wrap"),
+      td(r.sentiment?sentBadge(r.sentiment):'<span class="badge b-flat">Unclassified</span>',"nowrap"),
+      td(esc(val(r.primary)),"wrap"),
+      td(r.secondary.length?r.secondary.map(themeTag).join(" "):NA,"wrap"),
+      td(esc(trunc(val(r.pros),90)),"wrap"),td(esc(trunc(val(r.cons),90)),"wrap"),
+      td(esc(trunc(val(r.topics),70)),"wrap"),td(esc(trunc(val(r.summary),110)),"wrap"),
+      td(esc(trunc(val(r.notes),100)),"wrap"),
+      td(r.dupFlag?'<span class="badge b-alert"><span class="g">\u26A0</span>Potential duplicate</span><div class="t-sub">'+esc(r.dupNote)+'</div>':'<span class="badge b-flat">\u2014</span>',"wrap"),
+      td('<span class="t-sub">'+esc(fname(r.file))+'</span>',"nowrap")]),
+    {maxH:"620px"});
+}
+/* =========================================================
+   EXECUTIVE INSIGHTS (Sections 27–28)
+   ========================================================= */
+function renderInsights(S){
+  const host=$("insightHost");
+  if(!S.total){host.innerHTML='<div class="empty">No records match the current filters, so there is nothing to summarise.</div>';return;}
+  const D=t=>({k:"Data",t:t}),I=t=>({k:"Interpretation",t:t}),R=t=>({k:"Recommendation",t:t});
+  const kcls={Data:"b-nav",Interpretation:"b-mix",Recommendation:"b-flat"};
+  const pos=S.themeRows.filter(r=>r.polarity==="Positive"),neg=S.themeRows.filter(r=>r.polarity==="Negative");
+  const negRate=pct(S.bySent.Negative,S.total),posRate=pct(S.bySent.Positive,S.total);
+  const g=S.recs.filter(r=>r.source==="Glassdoor"),i=S.recs.filter(r=>r.source==="Indeed");
+  const negOf=a=>a.length?pct(a.filter(r=>r.sentiment==="Negative").length,a.length):0;
+  const rising=S.themeRows.filter(r=>r.trend==="Increasing");
+  const falling=S.themeRows.filter(r=>r.trend==="Decreasing");
+  const persistent=S.themeRows.filter(r=>r.trend==="Persistent");
+  const emerging=S.themeRows.filter(r=>r.trend==="Emerging");
+  const scope=S.periods.length?monthLabel(S.periods[0])+" to "+monthLabel(S.periods[S.periods.length-1]):"no dated reviews";
+  const drv=r=>r.theme+" ("+r.count+" reviews, "+r.share.toFixed(1)+"% of the dataset; "+
+    (r.assoc==="No dominant sentiment"?"no dominant sentiment":r.assoc.toLowerCase()+" on "+r.assocPct.toFixed(0)+"% of them")+")";
+
+  const blocks=[];
+  const key=[D(S.total+" reviews in view across "+S.periods.length+" period"+(S.periods.length===1?"":"s")+" ("+scope+"): "+S.bySource.Glassdoor+" Glassdoor, "+S.bySource.Indeed+" Indeed.")];
+  key.push(D("Sentiment splits "+posRate.toFixed(1)+"% positive, "+negRate.toFixed(1)+"% negative, "+pct(S.bySent.Mixed,S.total).toFixed(1)+"% mixed, "+pct(S.bySent.Neutral,S.total).toFixed(1)+"% neutral."+(S.bySent.Unclassified?" "+S.bySent.Unclassified+" record(s) carry no sentiment value.":"")));
+  if(S.primaryRows[0])key.push(D("The most discussed area of the employee experience is "+S.primaryRows[0].theme+", the primary theme on "+S.primaryRows[0].count+" reviews ("+S.primaryRows[0].share.toFixed(1)+"%)."));
+  if(negRate>posRate+10)key.push(I("Negative reviews outweigh positive ones by "+(negRate-posRate).toFixed(1)+" points, so the dataset in view is weighted toward criticism rather than balance."));
+  else if(posRate>negRate+10)key.push(I("Positive reviews outweigh negative ones by "+(posRate-negRate).toFixed(1)+" points in this view."));
+  if(S.hasEmployment){
+    const cur=S.recs.filter(r=>r.employment==="Current Employee"),past=S.recs.filter(r=>r.employment==="Past Employee");
+    const negArr=a=>a.length?pct(a.filter(r=>r.sentiment==="Negative").length,a.length):0;
+    const parts=[];
+    const rv=n=>n+" review"+(n===1?"":"s");
+    if(cur.length)parts.push("current employees "+rv(cur.length)+", "+negArr(cur).toFixed(1)+"% negative");
+    if(past.length)parts.push("past employees "+rv(past.length)+", "+negArr(past).toFixed(1)+"% negative");
+    if(S.byEmployment["Not stated"])parts.push(S.byEmployment["Not stated"]+" with no status stated");
+    if(parts.length)key.push(D("Population split: "+parts.join("; ")+"."));
+    if(cur.length>=5&&past.length>=5){
+      const gap=negArr(past)-negArr(cur);
+      if(Math.abs(gap)>=10)key.push(I("Past employees are "+Math.abs(gap).toFixed(1)+" points "+(gap>0?"more":"less")
+        +" negative than current ones. Leavers and stayers are different populations, and an exit-driven review is often written at the worst moment \u2014 read the two separately rather than as one workforce signal."));
+    }
+  }
+  if(S.dupes)key.push(D(S.dupes+" record(s) are flagged as potential duplicates and remain in the dataset; excluding them via the duplicate filter will change every figure above."));
+  if(S.small)key.push(I("This is a small dataset ("+S.total+" reviews, "+S.periods.length+" period(s)). Directional language below should be read as an observed pattern, not an established trend."));
+  blocks.push(["Key findings",key]);
+
+  const pd=[];
+  if(pos.length){pos.slice(0,4).forEach(r=>pd.push(D(drv(r))));
+    const topPosPrim=S.primaryRows.filter(r=>r.pos>0).sort((a,b)=>b.pos-a.pos)[0];
+    if(topPosPrim)pd.push(D(topPosPrim.theme+" carries the most positive reviews of any primary theme ("+topPosPrim.pos+" of "+topPosPrim.count+")."));
+    pd.push(I("These are the themes worth protecting: they are what reviewers volunteer as working."));
+  }else pd.push(D("No positive secondary themes are present in the current view."));
+  blocks.push(["Positive drivers",pd]);
+
+  const nd=[];
+  if(neg.length){neg.slice(0,5).forEach(r=>nd.push(D(drv(r))));
+    const topNegPrim=S.primaryRows.filter(r=>r.neg>0).sort((a,b)=>b.neg-a.neg)[0];
+    if(topNegPrim)nd.push(D(topNegPrim.theme+" carries the most negative reviews of any primary theme ("+topNegPrim.neg+" of "+topNegPrim.count+", "+pctStr(topNegPrim.neg,topNegPrim.count)+")."));
+  }else nd.push(D("No negative secondary themes are present in the current view."));
+  blocks.push(["Negative drivers",nd]);
+
+  const rs=[];
+  const persistPos=persistent.filter(r=>r.polarity==="Positive");
+  if(persistPos.length)persistPos.slice(0,4).forEach(r=>rs.push(D(r.theme+" is persistent: "+r.why)));
+  else if(pos.length)rs.push(D("No positive theme meets the persistence test (present in at least 70% of periods) in this view. Highest-volume positive theme is "+pos[0].theme+" at "+pos[0].count+" reviews."));
+  else rs.push(D("No positive themes to assess."));
+  if(falling.filter(r=>r.polarity==="Positive").length)rs.push(I("Declining positive themes: "+falling.filter(r=>r.polarity==="Positive").map(r=>r.theme).join(", ")+". A strength losing share is an early warning, not yet a problem."));
+  blocks.push(["Recurring strengths",rs]);
+
+  const rc=[];
+  const persistNeg=persistent.filter(r=>r.polarity==="Negative");
+  if(persistNeg.length)persistNeg.slice(0,5).forEach(r=>rc.push(D(r.theme+" is persistent: "+r.why)));
+  else if(neg.length)rc.push(D("No negative theme meets the persistence test in this view. Highest-volume negative theme is "+neg[0].theme+" at "+neg[0].count+" reviews."));
+  if(rising.filter(r=>r.polarity==="Negative").length)rc.push(D("Rising negative themes: "+rising.filter(r=>r.polarity==="Negative").map(r=>r.theme+" ("+r.count+")").join(", ")+"."));
+  if(persistNeg.length)rc.push(I("A persistent concern that has survived several reporting periods is unlikely to resolve on its own; it usually reflects something structural rather than a bad month."));
+  blocks.push(["Recurring concerns",rc]);
+
+  const et=[];
+  if(emerging.length)emerging.forEach(r=>et.push(D(r.theme+" \u2014 "+r.why)));
+  if(S.emergingRows.length)S.emergingRows.slice(0,6).forEach(r=>et.push(D("Off-taxonomy topic \u201C"+r.theme+"\u201D on "+r.count+" review(s) ("+r.share.toFixed(1)+"%), "+(r.sources.length?r.sources.join(" and "):"source unknown")+", first detected "+(r.first||"undated")+", flagged via "+r.via+".")));
+  if(!emerging.length&&!S.emergingRows.length)et.push(D("No emerging themes detected in the current view."));
+  else et.push(S.small?I("With this few periods, treat everything above as an observed pattern to watch rather than a confirmed trend."):I("A topic recurring across both sources and more than one period is the threshold for promoting it into the official Secondary Theme baseline."));
+  const promo=S.emergingRows.filter(r=>r.crossSource&&r.count>=3);
+  if(promo.length)et.push(R("Review "+promo.map(r=>"\u201C"+r.theme+"\u201D").join(", ")+" for promotion to the baseline taxonomy \u2014 cross-source and 3+ reviews."));
+  blocks.push(["Emerging trends",et]);
+
+  const sd=[];
+  if(g.length&&i.length){
+    sd.push(D("Glassdoor: "+g.length+" reviews, "+negOf(g).toFixed(1)+"% negative. Indeed: "+i.length+" reviews, "+negOf(i).toFixed(1)+"% negative."));
+    const both=S.themeRows.filter(r=>r.gd>0&&r.ind>0),gOnly=S.themeRows.filter(r=>r.gd>0&&r.ind===0),iOnly=S.themeRows.filter(r=>r.ind>0&&r.gd===0);
+    sd.push(D(both.length+" secondary theme(s) appear on both platforms; "+gOnly.length+" only on Glassdoor; "+iOnly.length+" only on Indeed."));
+    if(gOnly.length)sd.push(D("Glassdoor only: "+gOnly.slice(0,6).map(r=>r.theme).join(", ")+"."));
+    if(iOnly.length)sd.push(D("Indeed only: "+iOnly.slice(0,6).map(r=>r.theme).join(", ")+"."));
+    const gap=Math.abs(negOf(g)-negOf(i));
+    sd.push(gap>=10?I("The "+gap.toFixed(1)+"-point gap in negative rate suggests the two audiences are not the same population — Glassdoor and Indeed reviewers differ by role mix and tenure, so read them as two samples rather than one.")
+      :I("Negative rates are within "+gap.toFixed(1)+" points of each other, so the two platforms are broadly telling the same story on sentiment."));
+  }else sd.push(D("Only one source is present in the current view, so no comparison is possible."));
+  blocks.push(["Source differences",sd]);
+
+  const ar=[];
+  const worst=neg.slice(0,3);
+  worst.forEach(r=>ar.push(D(r.theme+": "+r.count+" reviews ("+r.share.toFixed(1)+"%)"+(r.assoc==="Negative"?", negative on "+r.assocPct.toFixed(0)+"% of them":"")+", trend "+r.trend.toLowerCase()+".")));
+  const structural=S.themeRows.filter(r=>["Layoffs / AI","Organizational / Structural Changes","Outsourcing Roles","Upper Management","Communication"].indexOf(r.theme)>-1&&r.count>0);
+  if(structural.length)ar.push(D("Trust and stability cluster: "+structural.map(r=>r.theme+" ("+r.count+")").join(", ")+"."));
+  const unclass=S.recs.filter(r=>!r.sentiment||!r.primary).length;
+  if(unclass)ar.push(D(unclass+" record(s) in view are missing sentiment or a primary theme, which lowers the reliability of every share above."));
+  if(!worst.length)ar.push(D("No negative themes in the current view."));
+  blocks.push(["Areas requiring attention",ar]);
+
+  const rec=[];
+  if(worst[0])rec.push(R("Investigate "+worst[0].theme+" first \u2014 it is the highest-volume negative theme at "+worst[0].share.toFixed(1)+"% of reviews. Pair the review text with internal data (engagement, exit interviews, workload metrics) before concluding cause."));
+  if(rising.filter(r=>r.polarity==="Negative")[0]){const t=rising.filter(r=>r.polarity==="Negative")[0];
+    rec.push(R("Put "+t.theme+" on the next reporting cycle as a watch item: its share is rising and it is the fastest-moving negative theme in view."));}
+  if(pos[0])rec.push(R("Protect "+pos[0].theme+" in any change programme \u2014 it is the strongest positive driver here ("+pos[0].count+" reviews) and the easiest thing to lose accidentally."));
+  if(g.length&&i.length&&Math.abs(negOf(g)-negOf(i))>=10)rec.push(R("Report Glassdoor and Indeed separately rather than blending them; the negative-rate gap means a combined figure hides which population is unhappy."));
+  if(S.dupes)rec.push(R("Resolve the "+S.dupes+" duplicate flag(s) before this dataset is used for external or board reporting."));
+  if(S.small)rec.push(R("Add more historical exports before drawing directional conclusions \u2014 "+S.periods.length+" period(s) is not enough to separate a trend from noise."));
+  rec.push(R("Keep the classification framework fixed between periods. Changing theme definitions mid-series is the fastest way to manufacture a trend that isn't there."));
+  blocks.push(["Recommendations",rec]);
+
+  host.innerHTML=blocks.map(b=>'<div class="insight-block"><h4>'+esc(b[0])+'</h4><ul>'
+    +(b[1].length?b[1].map(x=>'<li><span class="badge '+kcls[x.k]+'"><span class="g">\u25AA</span>'+x.k+'</span><span>'+esc(x.t)+'</span></li>').join("")
+      :'<li><span class="t-sub">Nothing to report for the current filters.</span></li>')
+    +'</ul></div>').join("");
+}
+
+/* =========================================================
+   ORCHESTRATION
+   ========================================================= */
+function renderChips(){
+  const f=activeFilterList();
+  const host=$("activeFilters");
+  if(!f.length){host.innerHTML='<span>No filters applied — showing every uploaded record.</span>';return;}
+  host.innerHTML='<span>Active:</span>'+f.map(x=>'<span class="chip">'+esc(x.k)+': '+esc(x.v)+'<button data-clear="'+x.el+'" aria-label="Clear '+esc(x.k)+' filter">\u00D7</button></span>').join("")
+    +'<button class="btn quiet small" id="btnClearFilters">Clear all filters</button>';
+  host.querySelectorAll("[data-clear]").forEach(b=>b.onclick=()=>{$(b.dataset.clear).value="";renderP2();});
+  const cf=$("btnClearFilters");if(cf)cf.onclick=()=>{["fSource","fSentiment","fPrimary","fSecondary","fEmployment","fDup","fFile","fFrom","fTo","fSearch"].forEach(id=>$(id).value="");renderP2();};
+}
+function renderP2(){
+  const has=P2.records.length>0;
+  $("dashArea").hidden=!has;$("dashEmpty").hidden=has;
+  renderFiles();
+  if(!has)return;
+  const recs=filtered();
+  const S=computeStats(recs);
+  $("filterCount").textContent=S.total+" of "+P2.records.length+" records in view";
+  renderChips();renderKpis(S);renderCharts(S);renderTrendTables(S);
+  renderSourceComparison(S);renderRecurring(S);renderInsights(S);renderRecords(S);
+}
+
+/* ---- clipboard with fallback ---- */
+function copyText(text,box,msgEl){
+  const done=()=>flash(msgEl,"Copied to clipboard.","ok");
+  const fallback=()=>{
+    if(box){box.hidden=false;box.value=text;box.focus();box.select();}
+    try{if(document.execCommand("copy")){done();return;}}catch(e){}
+    flash(msgEl,"Clipboard blocked here \u2014 the text is selected below, copy it manually.","err");
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(fallback);
+  }else fallback();
+}
+
+/* =========================================================
+   EVENTS
+   ========================================================= */
+function showPage(n){
+  $("page1").hidden=n!==1;$("page2").hidden=n!==2;
+  $("tab-p1").setAttribute("aria-selected",n===1);$("tab-p2").setAttribute("aria-selected",n===2);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("tab-p1").onclick=()=>showPage(1);
+$("tab-p2").onclick=()=>showPage(2);
+
+$("intakeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  $("intakeSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("intakeSingle").hidden=b.dataset.mode!=="single";
+  $("intakeBulk").hidden=b.dataset.mode!=="bulk";
+});
+
+$("btnAddSingle").onclick=()=>{
+  const text=$("rvText").value.trim();
+  if(!text){flash($("msgSingle"),"Review text is required.","err");return;}
+  const r=mkRec({source:$("rvSource").value,date:$("rvDate").value,title:$("rvTitle").value.trim(),text:text,
+    location:$("rvLocation").value.trim(),employment:$("rvEmployment").value,jobTitle:$("rvJobTitle").value.trim()});
+  P1.reviews.push(r);
+  applyClassification(r);
+  $("rvTitle").value="";$("rvText").value="";
+  p1Dupes();p1Render();
+  flash($("msgSingle"),r.id+" added and classified \u2014 "+r.sentiment.toLowerCase()+", "+r.level+" confidence."
+    +(needsEye(r)?" Read this one before confirming.":" Confirm or edit it in the working set."),needsEye(r)?"err":"ok");
+};
+$("btnAddBulk").onclick=()=>{
+  const raw=$("bulkBox").value.trim();
+  if(!raw){flash($("msgBulk"),"Paste at least one review block.","err");return;}
+  const blocks=raw.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  let added=0;const bad=[];
+  blocks.forEach((b,idx)=>{
+    const parts=b.split("|").map(x=>x.trim());
+    if(parts.length<4){bad.push(idx+1);return;}
+    const src=/^i/i.test(parts[0])?"Indeed":/^g/i.test(parts[0])?"Glassdoor":"";
+    if(!src){bad.push(idx+1);return;}
+    const date=/^\d{4}-\d{2}-\d{2}$/.test(parts[1])?parts[1]:"";
+    const text=parts.slice(3).join(" | ").trim();
+    if(!text){bad.push(idx+1);return;}
+    const nr=mkRec({source:src,date:date,title:parts[2],text:text,
+      location:$("bulkLocation").value.trim(),employment:$("bulkEmployment").value,jobTitle:$("bulkJobTitle").value.trim()});
+    P1.reviews.push(nr);applyClassification(nr);added++;
+  });
+  p1Dupes();p1Render();
+  if(added)$("bulkBox").value="";
+  const eye=P1.reviews.filter(needsEye).length;
+  flash($("msgBulk"),added+" review"+(added===1?"":"s")+" added and classified."
+    +(eye?" "+eye+" need a closer look before confirming.":"")+(bad.length?" Block(s) "+bad.join(", ")+" skipped \u2014 need Source | YYYY-MM-DD | Title | Text.":""),bad.length?"err":"ok");
+};
+
+$("btnSaveClassify").onclick=saveEditor;
+$("btnCloseEditor").onclick=closeEditor;
+$("btnCloseEditor2").onclick=closeEditor;
+$("edPrimary").onchange=()=>{if(P1.editing)refreshPicker();};
+$("btnRunDupes").onclick=()=>{
+  const n=p1Dupes();p1Render();
+  flash($("msgWs"),n?n+" potential duplicate group(s) found and flagged.":"No potential duplicates found.","ok");
+};
+$("btnClearWs").onclick=()=>{
+  if(!P1.reviews.length)return;
+  P1.reviews=[];P1.seq=1;closeEditor();p1Render();
+  flash($("msgWs"),"Working set cleared. Exported files are unaffected.","ok");
+};
+$("btnExport").onclick=()=>{
+  const label=$("expLabel").value.trim().replace(/[^\w\-]+/g,"-").replace(/^-|-$/g,"");
+  const name="review-dataset"+(label?"_"+label:"")+"_"+stamp()+".csv";
+  const csv=exportCsv();
+  const unclass=P1.reviews.filter(r=>!isClassified(r)).length;
+  if(download(name,csv))flash($("msgExport"),"Exported "+P1.reviews.length+" record(s) as "+name+"."+(unclass?" "+unclass+" unclassified record(s) exported with N/A values.":""),"ok");
+  else{$("csvBox").hidden=false;$("csvBox").value=csv;flash($("msgExport"),"Download was blocked \u2014 the CSV is below, copy it into a file.","err");}
+};
+$("btnCopyCsv").onclick=()=>{const csv=exportCsv();$("csvBox").value=csv;copyText(csv,$("csvBox"),$("msgExport"));};
+
+/* ---- page 2 events ---- */
+function ingest(files){
+  const list=Array.from(files||[]);
+  if(!list.length)return;
+  const msgs=[],errs=[];let pending=list.length;
+  list.forEach(f=>{
+    if(!/\.csv$/i.test(f.name)){errs.push(f.name+" \u2014 only .csv exports are accepted.");if(!--pending)finish();return;}
+    const fr=new FileReader();
+    fr.onload=()=>{const r=addFile(f.name,fr.result);(r.err?errs:msgs).push(r.err||r.ok);if(!--pending)finish();};
+    fr.onerror=()=>{errs.push(f.name+" \u2014 could not be read.");if(!--pending)finish();};
+    fr.readAsText(f);
+  });
+  function finish(){
+    p2Dupes();fillFilterOptions();
+    P2.trendPick=null;P2.trendTouched=false;
+    renderP2();
+    const el=$("uploadMsg");
+    el.className="msg "+(errs.length?"err":"ok");
+    el.innerHTML=[msgs.join(" "),errs.join(" ")].filter(Boolean).join("<br>");
+  }
+}
+$("fileInput").onchange=e=>{ingest(e.target.files);e.target.value="";};
+const drop=$("drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hot");}));
+drop.addEventListener("drop",e=>{if(e.dataTransfer&&e.dataTransfer.files)ingest(e.dataTransfer.files);});
+$("btnClearAll").onclick=()=>{
+  clearAll();fillFilterOptions();renderP2();
+  flash($("uploadMsg"),"Dataset cleared. Upload exports to start again.","ok");
+};
+["fSource","fSentiment","fPrimary","fSecondary","fEmployment","fDup","fFile","fFrom","fTo"].forEach(id=>$(id).onchange=renderP2);
+let searchT=null;
+$("fSearch").oninput=()=>{clearTimeout(searchT);searchT=setTimeout(renderP2,200);};
+$("recurSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  $("recurSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  P2.recurView=b.dataset.view;renderP2();
+});
+
+/* ---- init ---- */
+$("fPrimary").innerHTML='<option value="">All primary themes</option>';
+$("fSecondary").innerHTML='<option value="">All secondary themes</option>';
+$("fEmployment").innerHTML='<option value="">All employment statuses</option>';
+$("fFile").innerHTML='<option value="">All files</option>';
+p1Render();
+renderP2();
+showPage(1);
+</script>
+</body>
+</html>
